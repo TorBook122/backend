@@ -1,6 +1,7 @@
 {
   "name": "torbook-server",
   "private": true,
+  "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=20"
   },
@@ -17,7 +18,8 @@
     "docker:down": "docker compose --profile app down",
     "docker:logs": "docker compose --profile app logs -f",
     "docker:infra": "docker compose up -d postgres redis",
-    "start": "dotenv -e .env -- pnpm --filter @torbook/api start"
+    "start": "pnpm --filter @torbook/api start",
+    "render:build": "pnpm install --frozen-lockfile && pnpm db:generate && pnpm --filter @torbook/db exec prisma migrate deploy && pnpm build"
   },
   "devDependencies": {
     "dotenv-cli": "^8.0.0",
