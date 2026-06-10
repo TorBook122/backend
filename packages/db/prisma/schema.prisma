@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  BUSINESS_OWNER
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED_BY_CLIENT
+  CANCELLED_BY_BUSINESS
+  COMPLETED
+  PENDING_OWNER_DECISION
+}
+
+model User {
+  id                    String    @id @default(cuid())
+  name                  String
+  emailEnc              String?
+  emailHash             String?   @unique
+  phoneEnc              String
+  phoneHash             String    @unique
+  passwordHash          String
+  role                  UserRole
+  onboardingCompletedAt DateTime?
+  deletedAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  business      Business?
+  appointments  Appointment[]
+  favorites     Favorite[]
+  fcmTokens     FcmToken[]
+  auditLogs     AuditLog[]
+
+  @@index([role])
+}
+
+model Business {
+  id                      String    @id @default(cuid())
+  ownerId                 String    @unique
+  owner                   User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name                    String
+  slug                    String    @unique
+  category                String?
+  logoUrl                 String?
+  phoneEnc                String
+  cancellationWindowHours Int       @default(24)
+  deletedAt               DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  services      Service[]
+  availability  Availability[]
+  breakBlocks   BreakBlock[]
+  appointments  Appointment[]
+  timeBlocks    TimeBlock[]
+  favorites     Favorite[]
+
+  @@index([slug])
+}
+
+model Availability {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int
+  isActive   Boolean  @default(true)
+  startTime  String
+  endTime    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, dayOfWeek])
+}
+
+model BreakBlock {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, dayOfWeek])
+}
+
+model Service {
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name         String
+  durationMins Int
+  price        Int      @default(0)
+  isVisible    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  appointments Appointment[]
+
+  @@index([businessId])
+}
+
+model Appointment {
+  id         String            @id @default(cuid())
+  businessId String
+  business   Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   User              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  startsAt   DateTime
+  endsAt     DateTime
+  status     AppointmentStatus @default(CONFIRMED)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([businessId, startsAt])
+  @@index([customerId, startsAt])
+}
+
+model TimeBlock {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  startsAt   DateTime
+  endsAt     DateTime
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId, startsAt])
+}
+
+model Favorite {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, businessId])
+}
+
+model FcmToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+}

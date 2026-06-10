@@ -1,0 +1,35 @@
+{
+  "name": "torbook-server",
+  "private": true,
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "dotenv -e .env -- pnpm --filter @torbook/api dev",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "db:generate": "pnpm --filter @torbook/db exec prisma generate",
+    "db:migrate": "dotenv -e .env -- pnpm --filter @torbook/db exec prisma migrate dev",
+    "db:seed": "dotenv -e .env -- pnpm --filter @torbook/db exec tsx src/seed.ts",
+    "docker:up": "docker compose --profile app up -d --build",
+    "docker:down": "docker compose --profile app down",
+    "docker:logs": "docker compose --profile app logs -f",
+    "docker:infra": "docker compose up -d postgres redis"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-airbnb-typescript": "^18.0.0",
+    "eslint-import-resolver-typescript": "^3.7.0",
+    "eslint-plugin-import": "^2.31.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

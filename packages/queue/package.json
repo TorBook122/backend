@@ -1,0 +1,32 @@
+{
+  "name": "@torbook/queue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "worker": "tsx src/worker.ts",
+    "start": "node dist/worker.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.726.1",
+    "@torbook/db": "workspace:*",
+    "@torbook/notifications": "workspace:*",
+    "@torbook/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2"
+  }
+}

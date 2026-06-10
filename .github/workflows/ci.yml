@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: torbook_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports: ['5432:5432']
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-retries 5
+        ports: ['6379:6379']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @torbook/db exec prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/torbook_test
+
+      - name: Build all packages
+        run: pnpm -r run build
+
+      - name: Typecheck all packages
+        run: pnpm -r run typecheck
+
+      - name: Lint all packages
+        run: pnpm -r run lint
+
+      - name: Run DB migrations (test DB)
+        run: pnpm --filter @torbook/db exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/torbook_test
+
+      - name: Run tests
+        run: pnpm -r run test --run
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/torbook_test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: test-access-secret-min-32-chars-xx
+          JWT_REFRESH_SECRET: test-refresh-secret-min-32-chars-x
+          AES_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+          FCM_SERVICE_ACCOUNT_JSON: '{"type":"service_account"}'
+          AWS_REGION: us-east-1
+          AWS_SQS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/000000000000/torbook-test
+          NODE_ENV: test
