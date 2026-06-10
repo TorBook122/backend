@@ -240,10 +240,9 @@ export async function updateBreaks(
   await assertOwner(businessId, userId);
 
   const availability = await prisma.availability.findMany({ where: { businessId } });
-  const availMap = new Map(availability.map((a) => [a.dayOfWeek, a]));
 
   for (const brk of input.breaks) {
-    const day = availMap.get(brk.dayOfWeek);
+    const day = availability.find((a) => a.dayOfWeek === brk.dayOfWeek);
     if (!day?.isActive) {
       throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, 'הפסקה רק ביום פעיל');
     }
