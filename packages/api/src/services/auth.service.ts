@@ -37,19 +37,24 @@ function toAuthUser(user: {
   };
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+const refreshCookieOptions = {
+  sameSite: isProduction ? ('none' as const) : ('lax' as const),
+  secure: isProduction,
+  path: '/api/v1/auth',
+};
+
 function setRefreshCookie(res: Response, token: string, rememberMe: boolean) {
   const maxAge = getRefreshTtlSeconds(rememberMe) * 1000;
   res.cookie(REFRESH_COOKIE_NAME, token, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/api/v1/auth',
+    ...refreshCookieOptions,
     maxAge,
   });
 }
 
 function clearRefreshCookie(res: Response) {
-  res.clearCookie(REFRESH_COOKIE_NAME, { path: '/api/v1/auth' });
+  res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions);
 }
 
 async function storeRefreshToken(userId: string, jti: string, rememberMe: boolean) {

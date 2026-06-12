@@ -5,12 +5,14 @@ import { AppError } from '../utils/app-error.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 export function issueCsrfToken(_req: Request, res: Response) {
   const token = randomBytes(32).toString('hex');
   res.cookie(CSRF_COOKIE_NAME, token, {
     httpOnly: false,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
     path: '/',
   });
   res.json({ success: true, data: { csrfToken: token } });
