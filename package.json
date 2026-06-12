@@ -6,7 +6,7 @@
     "node": ">=20.0.0 <21.0.0",
     "pnpm": ">=9.15.0",
     "npm": "please-use-pnpm",
-    "yarn": "please-use-pnpm"
+    "yarn": "please-use-pnpm" 
   },
   "scripts": {
     "dev": "dotenv -e .env -- pnpm --filter @torbook/api dev",
