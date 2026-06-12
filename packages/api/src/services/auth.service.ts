@@ -21,6 +21,7 @@ import {
 } from '@torbook/shared';
 import { getRedis } from '../lib/redis.js';
 import { AppError } from '../utils/app-error.js';
+import { crossSiteCookieOptions } from '../utils/cookie-options.js';
 import type { LoginBody, RegisterBody } from '../validators/auth.validator.js';
 
 function toAuthUser(user: {
@@ -37,10 +38,8 @@ function toAuthUser(user: {
   };
 }
 
-const isProduction = process.env.NODE_ENV === 'production';
 const refreshCookieOptions = {
-  sameSite: isProduction ? ('none' as const) : ('lax' as const),
-  secure: isProduction,
+  ...crossSiteCookieOptions(),
   path: '/api/v1/auth',
 };
 

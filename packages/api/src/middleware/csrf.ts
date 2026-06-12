@@ -2,17 +2,15 @@ import { randomBytes } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { API_ERROR_CODES, CSRF_COOKIE_NAME } from '@torbook/shared';
 import { AppError } from '../utils/app-error.js';
+import { crossSiteCookieOptions } from '../utils/cookie-options.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-
-const isProduction = process.env.NODE_ENV === 'production';
 
 export function issueCsrfToken(_req: Request, res: Response) {
   const token = randomBytes(32).toString('hex');
   res.cookie(CSRF_COOKIE_NAME, token, {
     httpOnly: false,
-    sameSite: isProduction ? 'none' : 'lax',
-    secure: isProduction,
+    ...crossSiteCookieOptions(),
     path: '/',
   });
   res.json({ success: true, data: { csrfToken: token } });
