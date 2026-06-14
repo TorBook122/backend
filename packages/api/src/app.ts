@@ -15,9 +15,20 @@ export function createApp(): Express {
   const app = express();
 
   app.use(helmet());
+  const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+      origin(origin, callback) {
+        if (!origin || corsOrigins.includes(origin)) {
+          callback(null, origin ?? corsOrigins[0]);
+          return;
+        }
+        callback(new Error('Not allowed by CORS'));
+      },
       credentials: true,
     }),
   );

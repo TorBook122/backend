@@ -5,7 +5,10 @@ export const registerSchema = z
   .object({
     name: z.string().min(2, 'שם חייב להכיל לפחות 2 תווים'),
     phone: z.string().min(9, 'מספר טלפון לא תקין'),
-    email: z.string().email('אימייל לא תקין').optional(),
+    email: z.preprocess(
+      (val) => (val === '' || val === null ? undefined : val),
+      z.string().email('אימייל לא תקין').optional(),
+    ),
     password: z.string().min(8, 'סיסמה חייבת להכיל לפחות 8 תווים'),
     role: z.nativeEnum(UserRole),
   })
