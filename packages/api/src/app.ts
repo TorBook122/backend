@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { issueCsrfToken, validateCsrf } from './middleware/csrf.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { sanitize } from './middleware/sanitize.js';
+import adminRoutes from './routes/admin.routes.js';
 import appointmentRoutes from './routes/appointment.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import businessRoutes from './routes/business.routes.js';
@@ -35,6 +36,7 @@ export function createApp(): Express {
   app.use(express.json());
   app.use(cookieParser());
   app.use(sanitize);
+  app.use('/admin', adminRoutes);
   app.use(validateCsrf);
 
   app.get('/health', (_req, res) => {
