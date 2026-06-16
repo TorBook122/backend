@@ -261,14 +261,14 @@ function renderLoginPage(error?: string): string {
 </head>
 <body>
   <div class="card">
-    <h1>Torbook Admin</h1>
+    <h1>Torbook Admin - מנהל מערכת</h1>
     ${errorBlock}
     <form method="POST" action="/admin/login">
       <label for="username">Username</label>
       <input id="username" name="username" type="text" required autocomplete="username">
       <label for="password">Password</label>
       <input id="password" name="password" type="password" required autocomplete="current-password">
-      <button type="submit">Sign in</button>
+      <button type="submit">כניסה</button>
     </form>
   </div>
 </body>
@@ -320,11 +320,11 @@ function renderDashboardPage(
       <p class="muted">${businesses.length} business${businesses.length === 1 ? '' : 'es'}</p>
     </div>
     <form method="POST" action="/admin/logout">
-      <button type="submit">Logout</button>
+      <button type="submit">התנתקות</button>
     </form>
   </div>
 
-  <h2>Businesses</h2>
+  <h2>Businesses - עסקים</h2>
   <table>
     <thead>
       <tr>
