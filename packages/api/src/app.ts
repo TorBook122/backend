@@ -16,6 +16,10 @@ export function createApp(): Express {
   const app = express();
 
   app.use(helmet());
+  app.use(cookieParser());
+  // Server-rendered admin panel — same-origin HTML forms, no CORS needed
+  app.use('/admin', adminRoutes);
+
   const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
     .split(',')
     .map((origin) => origin.trim())
@@ -34,9 +38,7 @@ export function createApp(): Express {
     }),
   );
   app.use(express.json());
-  app.use(cookieParser());
   app.use(sanitize);
-  app.use('/admin', adminRoutes);
   app.use(validateCsrf);
 
   app.get('/health', (_req, res) => {
