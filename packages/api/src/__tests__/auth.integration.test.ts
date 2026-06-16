@@ -123,6 +123,7 @@ describe('auth integration', () => {
         .send({
           name: 'יוסי',
           phone: '0541111111',
+          email: 'yossi@example.com',
           password: 'Password123',
           role: 'CUSTOMER',
         }),
@@ -149,6 +150,7 @@ describe('auth integration', () => {
         .send({
           name: 'דני',
           phone: '0542222222',
+          email: 'danny@example.com',
           password: 'Password123',
           role: 'CUSTOMER',
         }),

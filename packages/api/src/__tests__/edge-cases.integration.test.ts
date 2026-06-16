@@ -51,7 +51,7 @@ async function withCsrf(
 
 async function registerUser(
   agent: request.SuperAgentTest,
-  data: { name: string; phone: string; email?: string; password: string; role: string },
+  data: { name: string; phone: string; email: string; password: string; role: string },
 ) {
   return withCsrf(agent, (token) =>
     agent
@@ -106,6 +106,7 @@ describe('Sprint 5 edge cases', () => {
     await registerUser(agent, {
       name: 'אבי',
       phone: '0521111111',
+      email: 'avi-customer@test.com',
       password: 'Password123',
       role: 'CUSTOMER',
     });
@@ -116,6 +117,7 @@ describe('Sprint 5 edge cases', () => {
       .send({
         name: 'אבי2',
         phone: '0521111111',
+        email: 'avi2-customer@test.com',
         password: 'Password123',
         role: 'CUSTOMER',
       }));
@@ -129,6 +131,7 @@ describe('Sprint 5 edge cases', () => {
     const reg = await registerUser(agent, {
       name: 'לקוח',
       phone: '0522222222',
+      email: 'customer-past@test.com',
       password: 'Password123',
       role: 'CUSTOMER',
     });
@@ -137,6 +140,7 @@ describe('Sprint 5 edge cases', () => {
     const ownerReg = await registerUser(agent, {
       name: 'בעלים',
       phone: '0523333333',
+      email: 'owner-past@test.com',
       password: 'Password123',
       role: 'BUSINESS_OWNER',
     });
@@ -161,6 +165,7 @@ describe('Sprint 5 edge cases', () => {
     const reg = await registerUser(agent, {
       name: 'לקוח',
       phone: '0524444444',
+      email: 'customer-cancel-past@test.com',
       password: 'Password123',
       role: 'CUSTOMER',
     });
@@ -169,6 +174,7 @@ describe('Sprint 5 edge cases', () => {
     const ownerReg = await registerUser(agent, {
       name: 'בעלים',
       phone: '0525555555',
+      email: 'owner-cancel-past@test.com',
       password: 'Password123',
       role: 'BUSINESS_OWNER',
     });
@@ -203,6 +209,7 @@ describe('Sprint 5 edge cases', () => {
     const reg = await registerUser(agent, {
       name: 'לקוח',
       phone: '0526666666',
+      email: 'customer-late-cancel@test.com',
       password: 'Password123',
       role: 'CUSTOMER',
     });
@@ -211,6 +218,7 @@ describe('Sprint 5 edge cases', () => {
     const ownerReg = await registerUser(agent, {
       name: 'בעלים',
       phone: '0527777777',
+      email: 'owner-late-cancel@test.com',
       password: 'Password123',
       role: 'BUSINESS_OWNER',
     });
@@ -245,6 +253,7 @@ describe('Sprint 5 edge cases', () => {
     const reg = await registerUser(agent, {
       name: 'לקוח',
       phone: '0528888888',
+      email: 'customer-soft-hide@test.com',
       password: 'Password123',
       role: 'CUSTOMER',
     });
@@ -253,6 +262,7 @@ describe('Sprint 5 edge cases', () => {
     const ownerReg = await registerUser(agent, {
       name: 'בעלים',
       phone: '0529999999',
+      email: 'owner-soft-hide@test.com',
       password: 'Password123',
       role: 'BUSINESS_OWNER',
     });
@@ -292,6 +302,7 @@ describe('Sprint 5 edge cases', () => {
     const reg = await registerUser(agent, {
       name: 'לקוח',
       phone: '0531111111',
+      email: 'customer-block-delete@test.com',
       password: 'Password123',
       role: 'CUSTOMER',
     });
@@ -300,6 +311,7 @@ describe('Sprint 5 edge cases', () => {
     const ownerReg = await registerUser(agent, {
       name: 'בעלים',
       phone: '0532222222',
+      email: 'owner-block-delete@test.com',
       password: 'Password123',
       role: 'BUSINESS_OWNER',
     });
@@ -363,6 +375,7 @@ describe('Sprint 5 edge cases', () => {
     const reg = await registerUser(agent, {
       name: 'לקוח',
       phone: '0534444444',
+      email: 'customer-hours-warn@test.com',
       password: 'Password123',
       role: 'CUSTOMER',
     });
@@ -371,6 +384,7 @@ describe('Sprint 5 edge cases', () => {
     const ownerReg = await registerUser(agent, {
       name: 'בעלים',
       phone: '0535555555',
+      email: 'owner-hours-warn@test.com',
       password: 'Password123',
       role: 'BUSINESS_OWNER',
     });
@@ -415,6 +429,7 @@ describe('Sprint 5 edge cases', () => {
     await registerUser(agent, {
       name: 'אבי',
       phone: '0536666666',
+      email: 'avi-audit@test.com',
       password: 'Password123',
       role: 'CUSTOMER',
     });

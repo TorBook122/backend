@@ -3,7 +3,7 @@ import type { UserRole } from '../types/enums.js';
 export type RegisterInput = {
   name: string;
   phone: string;
-  email?: string;
+  email: string;
   password: string;
   role: UserRole;
 };
