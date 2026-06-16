@@ -5,7 +5,7 @@ export const REFRESH_TOKEN_REMEMBER_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const BCRYPT_ROUNDS = 12;
 
 export const LOGIN_MAX_ATTEMPTS = 5;
-export const LOGIN_LOCKOUT_SECONDS = 15 * 60;
+export const LOGIN_LOCKOUT_SECONDS = 3 * 60;
 
 export const CSRF_COOKIE_NAME = 'torbook_csrf';
 export const REFRESH_COOKIE_NAME = 'torbook_refresh';
