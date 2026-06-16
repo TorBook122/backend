@@ -7,6 +7,8 @@ import { asyncHandler } from '../utils/async-handler.js';
 
 const router = Router();
 
+router.get('/me', requireAuth, asyncHandler(userController.getMe));
+
 router.delete(
   '/me',
   requireAuth,

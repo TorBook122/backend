@@ -5,6 +5,12 @@ import * as userService from '../services/user.service.js';
 import { AppError } from '../utils/app-error.js';
 import { deleteAccountSchema, gdprDeleteSchema } from '../validators/user.validator.js';
 
+export async function getMe(req: Request, res: Response) {
+  const { userId } = req as AuthenticatedRequest;
+  const profile = await userService.getProfile(userId);
+  res.json({ success: true, data: profile });
+}
+
 export async function deleteAccount(req: Request, res: Response) {
   const { userId } = req as AuthenticatedRequest;
   const parsed = deleteAccountSchema.safeParse(req.body);

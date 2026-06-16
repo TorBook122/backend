@@ -1,7 +1,21 @@
 import { prisma } from '@torbook/db';
 import { verifyPassword } from '@torbook/auth';
-import { API_ERROR_CODES, AppointmentStatus } from '@torbook/shared';
+import { API_ERROR_CODES, AppointmentStatus, type AuthUser } from '@torbook/shared';
 import { AppError } from '../utils/app-error.js';
+
+export async function getProfile(userId: string): Promise<AuthUser> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.deletedAt) {
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'משתמש לא נמצא');
+  }
+
+  return {
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
+  };
+}
 
 async function verifyUserPassword(userId: string, password: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
