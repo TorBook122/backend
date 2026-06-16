@@ -9,6 +9,7 @@ import {
   getBusinessBySlug,
   getOwnerBusiness,
   listOwnerServices,
+  listPublicBusinesses,
   updateAvailability,
   updateBreaks,
   updateBusiness,
@@ -36,6 +37,12 @@ export async function create(req: Request, res: Response) {
   }
   const business = await createBusiness(getUserId(req), parsed.data);
   res.status(201).json({ success: true, data: business });
+}
+
+export async function list(req: Request, res: Response) {
+  const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+  const businesses = await listPublicBusinesses(q);
+  res.json({ success: true, data: businesses });
 }
 
 export async function getMine(req: Request, res: Response) {

@@ -48,6 +48,13 @@ export type AppointmentDto = {
   customerName?: string;
 };
 
+export type BusinessListItem = {
+  id: string;
+  name: string;
+  slug: string;
+  category: string | null;
+};
+
 export type FavoriteDto = {
   id: string;
   businessId: string;

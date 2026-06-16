@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@torbook/db';
+import { decryptPii } from '@torbook/shared';
 import express, { type Request, type Response, Router } from 'express';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -287,6 +288,7 @@ function renderDashboardPage(
   users: Array<{
     id: string;
     name: string;
+    email: string | null;
     role: string;
     createdAt: Date;
     deletedAt: Date | null;
@@ -310,6 +312,7 @@ function renderDashboardPage(
       (user) => `<tr>
         <td>${escapeHtml(user.id)}</td>
         <td>${escapeHtml(user.name)}</td>
+        <td>${escapeHtml(user.email ?? '—')}</td>
         <td>${escapeHtml(user.role)}</td>
         <td>${escapeHtml(formatDate(user.createdAt))}</td>
         <td>${escapeHtml(formatDate(user.deletedAt))}</td>
@@ -367,12 +370,13 @@ function renderDashboardPage(
       <tr>
         <th>ID</th>
         <th>Name</th>
+        <th>Email</th>
         <th>Role</th>
         <th>Created</th>
         <th>Deleted</th>
       </tr>
     </thead>
-    <tbody>${userRows || '<tr><td colspan="5">No users found.</td></tr>'}</tbody>
+    <tbody>${userRows || '<tr><td colspan="6">No users found.</td></tr>'}</tbody>
   </table>
 
 
@@ -441,6 +445,7 @@ router.get(
         select: {
           id: true,
           name: true,
+          emailEnc: true,
           role: true,
           createdAt: true,
           deletedAt: true,
@@ -448,7 +453,16 @@ router.get(
       }),
     ]);
 
-    res.type('html').send(renderDashboardPage(businesses, users));
+    const usersWithEmail = users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.emailEnc ? decryptPii(user.emailEnc) : null,
+      role: user.role,
+      createdAt: user.createdAt,
+      deletedAt: user.deletedAt,
+    }));
+
+    res.type('html').send(renderDashboardPage(businesses, usersWithEmail));
   }),
 );
 

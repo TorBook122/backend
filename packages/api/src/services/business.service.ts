@@ -3,6 +3,7 @@ import { API_ERROR_CODES, UserRole, decryptPii, encryptPii, normalizePhone } fro
 import type {
   AvailabilityDay,
   BreakBlockDto,
+  BusinessListItem,
   BusinessOwner,
   BusinessPublic,
   ServiceDto,
@@ -143,6 +144,28 @@ export async function updateBusiness(
     ...toPublic(updated),
     phone: input.phone ?? decryptPii(updated.phoneEnc),
   };
+}
+
+export async function listPublicBusinesses(query?: string): Promise<BusinessListItem[]> {
+  const q = query?.trim();
+  const businesses = await prisma.business.findMany({
+    where: {
+      deletedAt: null,
+      owner: { onboardingCompletedAt: { not: null } },
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { category: { contains: q, mode: 'insensitive' } },
+              { slug: { contains: q, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    },
+    select: { id: true, name: true, slug: true, category: true },
+    orderBy: { name: 'asc' },
+  });
+  return businesses;
 }
 
 export async function getBusinessBySlug(slug: string): Promise<BusinessPublic> {

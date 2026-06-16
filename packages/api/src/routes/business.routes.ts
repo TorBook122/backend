@@ -15,9 +15,7 @@ router.post(
   asyncHandler(businessController.finishOnboarding),
 );
 
-router.get('/:slug/slots', asyncHandler(businessController.getSlots));
-router.get('/:slug', asyncHandler(businessController.getBySlug));
-
+router.get('/', requireAuth, asyncHandler(businessController.list));
 router.post(
   '/',
   requireAuth,
@@ -26,6 +24,9 @@ router.post(
   asyncHandler(businessController.create),
 );
 router.get('/mine/owner', requireAuth, requireRole(UserRole.BUSINESS_OWNER), asyncHandler(businessController.getMine));
+
+router.get('/:slug/slots', asyncHandler(businessController.getSlots));
+router.get('/:slug', asyncHandler(businessController.getBySlug));
 router.patch(
   '/:id',
   requireAuth,
