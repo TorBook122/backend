@@ -284,6 +284,13 @@ function renderDashboardPage(
     createdAt: Date;
     deletedAt: Date | null;
   }>,
+  users: Array<{
+    id: string;
+    name: string;
+    role: string;
+    createdAt: Date;
+    deletedAt: Date | null;
+  }>,
 ): string {
   const rows = businesses
     .map(
@@ -297,6 +304,19 @@ function renderDashboardPage(
       </tr>`,
     )
     .join('');
+
+  const userRows = users
+    .map(
+      (user) => `<tr>
+        <td>${escapeHtml(user.id)}</td>
+        <td>${escapeHtml(user.name)}</td>
+        <td>${escapeHtml(user.role)}</td>
+        <td>${escapeHtml(formatDate(user.createdAt))}</td>
+        <td>${escapeHtml(formatDate(user.deletedAt))}</td>
+      </tr>`,
+    )
+    .join('');
+
 
   const apiRouteGroups = API_ROUTES.map(
     (group) => `<div class="route-group">
@@ -317,7 +337,7 @@ function renderDashboardPage(
   <div class="header">
     <div>
       <h1 style="margin:0">Torbook Admin</h1>
-      <p class="muted">${businesses.length} business${businesses.length === 1 ? '' : 'es'}</p>
+      <p class="muted">${businesses.length} business${businesses.length === 1 ? '' : 'es'} · ${users.length} משתמש${users.length === 1 ? '' : 'ים'}</p>
     </div>
     <form method="POST" action="/admin/logout">
       <button type="submit">התנתקות</button>
@@ -338,6 +358,24 @@ function renderDashboardPage(
     </thead>
     <tbody>${rows || '<tr><td colspan="6">No businesses found.</td></tr>'}</tbody>
   </table>
+
+
+
+  <h2>Users - משתמשים</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Role</th>
+        <th>Created</th>
+        <th>Deleted</th>
+      </tr>
+    </thead>
+    <tbody>${userRows || '<tr><td colspan="5">No users found.</td></tr>'}</tbody>
+  </table>
+
+
 
   <h2>API Routes</h2>
   <details>
@@ -386,19 +424,31 @@ router.get(
       return;
     }
 
-    const businesses = await prisma.business.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        category: true,
-        createdAt: true,
-        deletedAt: true,
-      },
-    });
+    const [businesses, users] = await Promise.all([
+      prisma.business.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          category: true,
+          createdAt: true,
+          deletedAt: true,
+        },
+      }),
+      prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          role: true,
+          createdAt: true,
+          deletedAt: true,
+        },
+      }),
+    ]);
 
-    res.type('html').send(renderDashboardPage(businesses));
+    res.type('html').send(renderDashboardPage(businesses, users));
   }),
 );
 
