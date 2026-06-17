@@ -42,6 +42,7 @@ export type AppointmentDto = {
   businessSlug: string;
   serviceId: string;
   serviceName: string;
+  serviceDuration?: number;
   startsAt: string;
   endsAt: string;
   status: string;

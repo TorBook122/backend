@@ -27,7 +27,7 @@ function toAppointmentDto(
     endsAt: Date;
     status: string;
     business: { name: string; slug: string };
-    service: { name: string };
+    service: { name: string; durationMins: number };
     customer?: { name: string };
   },
 ): AppointmentDto {
@@ -38,6 +38,7 @@ function toAppointmentDto(
     businessSlug: apt.business.slug,
     serviceId: apt.serviceId,
     serviceName: apt.service.name,
+    serviceDuration: apt.service.durationMins,
     startsAt: apt.startsAt.toISOString(),
     endsAt: apt.endsAt.toISOString(),
     status: apt.status,
@@ -105,7 +106,7 @@ export async function createAppointment(
         },
         include: {
           business: { select: { name: true, slug: true } },
-          service: { select: { name: true } },
+          service: { select: { name: true, durationMins: true } },
         },
       });
     });
@@ -134,7 +135,7 @@ export async function cancelAppointment(appointmentId: string, userId: string): 
     where: { id: appointmentId },
     include: {
       business: true,
-      service: { select: { name: true } },
+      service: { select: { name: true, durationMins: true } },
       customer: { select: { name: true } },
     },
   });
@@ -175,7 +176,7 @@ export async function cancelAppointment(appointmentId: string, userId: string): 
     data: { status: newStatus },
     include: {
       business: { select: { name: true, slug: true } },
-      service: { select: { name: true } },
+      service: { select: { name: true, durationMins: true } },
       customer: { select: { name: true } },
     },
   });
@@ -203,7 +204,7 @@ export async function getCustomerAppointments(userId: string): Promise<{
     where: { customerId: userId },
     include: {
       business: { select: { name: true, slug: true } },
-      service: { select: { name: true } },
+      service: { select: { name: true, durationMins: true } },
     },
     orderBy: { startsAt: 'asc' },
   });
@@ -256,7 +257,7 @@ export async function getBusinessAppointments(
     },
     include: {
       business: { select: { name: true, slug: true } },
-      service: { select: { name: true } },
+      service: { select: { name: true, durationMins: true } },
       customer: { select: { name: true } },
     },
     orderBy: { startsAt: 'asc' },
