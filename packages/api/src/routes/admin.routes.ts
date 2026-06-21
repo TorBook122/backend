@@ -3,20 +3,12 @@ import { prisma } from '@torbook/db';
 import { decryptPii } from '@torbook/shared';
 import express, { type Request, type Response, Router } from 'express';
 import { asyncHandler } from '../utils/async-handler.js';
+import { getRedis } from '../lib/redis.js';
 
 const SESSION_COOKIE = 'torbook_admin_session';
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
-const sessions = new Map<string, { createdAt: number }>();
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, session] of sessions) {
-    if (now - session.createdAt > SESSION_TTL_MS) {
-      sessions.delete(token);
-    }
-  }
-}, 60 * 60 * 1000);
+const REDIS_SESSION_PREFIX = 'admin_session:';
 
 const API_ROUTES = [
   { group: 'Health', routes: ['GET /health', 'GET /api/v1/health'] },
@@ -111,33 +103,24 @@ function getSessionToken(req: Request): string | undefined {
   return req.cookies?.[SESSION_COOKIE] as string | undefined;
 }
 
-function isValidSession(token: string | undefined): boolean {
+async function isValidSession(token: string | undefined): Promise<boolean> {
   if (!token) {
     return false;
   }
 
-  const session = sessions.get(token);
-  if (!session) {
-    return false;
-  }
-
-  if (Date.now() - session.createdAt > SESSION_TTL_MS) {
-    sessions.delete(token);
-    return false;
-  }
-
-  return true;
+  const value = await getRedis().get(`${REDIS_SESSION_PREFIX}${token}`);
+  return value !== null;
 }
 
-function createSession(): string {
+async function createSession(): Promise<string> {
   const token = randomUUID();
-  sessions.set(token, { createdAt: Date.now() });
+  await getRedis().set(`${REDIS_SESSION_PREFIX}${token}`, '1', 'PX', SESSION_TTL_MS);
   return token;
 }
 
-function deleteSession(token: string | undefined): void {
+async function deleteSession(token: string | undefined): Promise<void> {
   if (token) {
-    sessions.delete(token);
+    await getRedis().del(`${REDIS_SESSION_PREFIX}${token}`);
   }
 }
 
@@ -394,36 +377,42 @@ const router = Router();
 
 router.use(express.urlencoded({ extended: true }));
 
-router.get('/', (req: Request, res: Response) => {
-  if (isValidSession(getSessionToken(req))) {
+router.get(
+  '/',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (await isValidSession(getSessionToken(req))) {
+      res.redirect('/admin/dashboard');
+      return;
+    }
+
+    res.type('html').send(renderLoginPage());
+  }),
+);
+
+router.post(
+  '/login',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { username, password } = getAdminCredentials();
+    const submittedUsername = typeof req.body?.username === 'string' ? req.body.username : '';
+    const submittedPassword = typeof req.body?.password === 'string' ? req.body.password : '';
+
+    if (submittedUsername !== username || submittedPassword !== password) {
+      res.status(401).type('html').send(renderLoginPage('Invalid username or password.'));
+      return;
+    }
+
+    const token = await createSession();
+    res.cookie(SESSION_COOKIE, token, sessionCookieOptions());
     res.redirect('/admin/dashboard');
-    return;
-  }
-
-  res.type('html').send(renderLoginPage());
-});
-
-router.post('/login', (req: Request, res: Response) => {
-  const { username, password } = getAdminCredentials();
-  const submittedUsername = typeof req.body?.username === 'string' ? req.body.username : '';
-  const submittedPassword = typeof req.body?.password === 'string' ? req.body.password : '';
-
-  if (submittedUsername !== username || submittedPassword !== password) {
-    res.status(401).type('html').send(renderLoginPage('Invalid username or password.'));
-    return;
-  }
-
-  const token = createSession();
-  res.cookie(SESSION_COOKIE, token, sessionCookieOptions());
-  res.redirect('/admin/dashboard');
-});
+  }),
+);
 
 router.get(
   '/dashboard',
   asyncHandler(async (req: Request, res: Response) => {
     const token = getSessionToken(req);
 
-    if (!isValidSession(token)) {
+    if (!(await isValidSession(token))) {
       res.redirect('/admin');
       return;
     }
@@ -466,10 +455,13 @@ router.get(
   }),
 );
 
-router.post('/logout', (req: Request, res: Response) => {
-  deleteSession(getSessionToken(req));
-  res.clearCookie(SESSION_COOKIE, { path: '/' });
-  res.redirect('/admin');
-});
+router.post(
+  '/logout',
+  asyncHandler(async (req: Request, res: Response) => {
+    await deleteSession(getSessionToken(req));
+    res.clearCookie(SESSION_COOKIE, { path: '/' });
+    res.redirect('/admin');
+  }),
+);
 
 export default router;
