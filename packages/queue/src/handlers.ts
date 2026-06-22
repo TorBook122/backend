@@ -1,18 +1,39 @@
-import { prisma } from '@torbook/db';
-import { sendPushToUser } from '@torbook/notifications';
+import { internalPost } from '@torbook/shared/server/http-client';
+import {
+  getAppointmentForCancellation,
+  getAppointmentForReminder,
+} from './clients/db.client.js';
+
+export type PushPayload = {
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+};
+
+function getNotificationsUrl(): string {
+  const url = process.env.NOTIFICATIONS_SERVICE_URL?.trim();
+  if (!url) {
+    throw new Error('NOTIFICATIONS_SERVICE_URL is required');
+  }
+  return url;
+}
+
+export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
+  await internalPost(getNotificationsUrl(), '/push', { userId, ...payload });
+}
 
 export async function handleReminder(appointmentId: string): Promise<void> {
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: appointmentId },
-    include: {
-      service: true,
-      business: true,
-      customer: true,
-    },
-  });
+  const appointment = await getAppointmentForReminder(appointmentId) as {
+    id: string;
+    status: string;
+    startsAt: string;
+    customerId: string;
+    service: { name: string };
+    business: { name: string; slug: string };
+  } | null;
 
   if (!appointment || appointment.status !== 'CONFIRMED') return;
-  if (appointment.startsAt <= new Date()) return;
+  if (new Date(appointment.startsAt) <= new Date()) return;
 
   await sendPushToUser(appointment.customerId, {
     title: 'תזכורת לתור',
@@ -26,14 +47,14 @@ export async function handleReminder(appointmentId: string): Promise<void> {
 }
 
 export async function handleCancellation(appointmentId: string): Promise<void> {
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: appointmentId },
-    include: {
-      service: true,
-      business: { include: { owner: true } },
-      customer: true,
-    },
-  });
+  const appointment = await getAppointmentForCancellation(appointmentId) as {
+    id: string;
+    status: string;
+    customerId: string;
+    service: { name: string };
+    business: { name: string; slug: string; ownerId: string };
+    customer: { name: string };
+  } | null;
 
   if (!appointment) return;
 

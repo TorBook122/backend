@@ -15,14 +15,18 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
   },
   "dependencies": {
-    "@torbook/db": "workspace:*",
     "@torbook/shared": "workspace:*",
+    "express": "^5.0.1",
     "firebase-admin": "^13.0.2"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2"
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2"
   }
 }

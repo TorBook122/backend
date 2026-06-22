@@ -1,20 +1,16 @@
-import { prisma } from '@torbook/db';
 import { API_ERROR_CODES } from '@torbook/shared';
 import type { FavoriteDto } from '@torbook/shared';
+import { dbClient } from '../clients/db.client.js';
 import { AppError } from '../utils/app-error.js';
 
 export async function addFavorite(userId: string, businessId: string): Promise<FavoriteDto> {
-  const business = await prisma.business.findFirst({ where: { id: businessId, deletedAt: null } });
-  if (!business) {
+  try {
+    await dbClient.businesses.findById(businessId);
+  } catch {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
   }
 
-  const favorite = await prisma.favorite.upsert({
-    where: { userId_businessId: { userId, businessId } },
-    create: { userId, businessId },
-    update: {},
-    include: { business: true },
-  });
+  const favorite = await dbClient.favorites.upsert(userId, businessId);
 
   return {
     id: favorite.id,
@@ -26,15 +22,11 @@ export async function addFavorite(userId: string, businessId: string): Promise<F
 }
 
 export async function removeFavorite(userId: string, businessId: string): Promise<void> {
-  await prisma.favorite.deleteMany({ where: { userId, businessId } });
+  await dbClient.favorites.remove(userId, businessId);
 }
 
 export async function listFavorites(userId: string): Promise<FavoriteDto[]> {
-  const favorites = await prisma.favorite.findMany({
-    where: { userId },
-    include: { business: true },
-    orderBy: { createdAt: 'desc' },
-  });
+  const favorites = await dbClient.favorites.list(userId);
 
   return favorites.map((f) => ({
     id: f.id,
@@ -46,20 +38,14 @@ export async function listFavorites(userId: string): Promise<FavoriteDto[]> {
 }
 
 export async function isFavorite(userId: string, businessId: string): Promise<boolean> {
-  const fav = await prisma.favorite.findUnique({
-    where: { userId_businessId: { userId, businessId } },
-  });
-  return !!fav;
+  const result = await dbClient.favorites.exists(userId, businessId);
+  return result.exists;
 }
 
 export async function registerFcmToken(userId: string, token: string): Promise<void> {
-  await prisma.fcmToken.upsert({
-    where: { token },
-    create: { userId, token },
-    update: { userId },
-  });
+  await dbClient.fcmTokens.upsert(userId, token);
 }
 
 export async function removeFcmToken(userId: string, token: string): Promise<void> {
-  await prisma.fcmToken.deleteMany({ where: { userId, token } });
+  await dbClient.fcmTokens.remove(userId, token);
 }

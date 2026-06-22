@@ -3,17 +3,17 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@torbook/db';
 import { disconnectRedis, getRedis } from '../lib/redis.js';
+import { LOGIN_MAX_ATTEMPTS } from '@torbook/shared';
 import { createApp } from '../app.js';
+import { startTestServices, stopTestServices } from './test-services.js';
 
 let app: Express;
 
 beforeAll(async () => {
-  process.env.JWT_ACCESS_SECRET = 'test-access-secret-min-32-chars-xx';
-  process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-min-32-chars-x';
-  process.env.AES_ENCRYPTION_KEY = '0000000000000000000000000000000000000000000000000000000000000000';
   process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
   process.env.NODE_ENV = 'test';
 
+  await startTestServices();
   app = createApp();
   await getRedis().connect();
 });
@@ -38,6 +38,7 @@ beforeEach(async () => {
 afterAll(async () => {
   await prisma.$disconnect();
   await disconnectRedis();
+  await stopTestServices();
 });
 
 async function withCsrf(
@@ -156,7 +157,7 @@ describe('auth integration', () => {
         }),
     );
 
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0; i < LOGIN_MAX_ATTEMPTS; i += 1) {
       await withCsrf(agent, (token) =>
         agent
           .post('/api/v1/auth/login')

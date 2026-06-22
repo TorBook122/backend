@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { API_ERROR_CODES } from '@torbook/shared';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
+import { dbClient } from '../clients/db.client.js';
 import {
   addFavorite,
   isFavorite,
@@ -38,10 +39,10 @@ export async function remove(req: Request, res: Response) {
 
 export async function check(req: Request, res: Response) {
   const slug = param(req.params.slug);
-  const business = await import('@torbook/db').then(({ prisma }) =>
-    prisma.business.findFirst({ where: { slug, deletedAt: null } }),
-  );
-  if (!business) {
+  let business;
+  try {
+    business = await dbClient.businesses.findBySlug(slug);
+  } catch {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
   }
   const favorited = await isFavorite(getUserId(req), business.id);

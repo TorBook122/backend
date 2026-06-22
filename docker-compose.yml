@@ -31,9 +31,10 @@ services:
       timeout: 3s
       retries: 5
 
-  migrate:
+  db-migrate:
     build:
       context: .
+      dockerfile: packages/db/Dockerfile
       target: migrate
     profiles:
       - app
@@ -41,15 +42,112 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://torbook:torbook_dev@postgres:5432/torbook
-      REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
+        condition: service_healthy
+
+  shared:
+    build:
+      context: .
+      dockerfile: packages/shared/Dockerfile
+    profiles:
+      - app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3002
+    expose:
+      - '3002'
+
+  db:
+    build:
+      context: .
+      dockerfile: packages/db/Dockerfile
+    profiles:
+      - app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3003
+      DATABASE_URL: postgresql://torbook:torbook_dev@postgres:5432/torbook
+    expose:
+      - '3003'
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+
+  auth:
+    build:
+      context: .
+      dockerfile: packages/auth/Dockerfile
+    profiles:
+      - app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3004
+      REDIS_URL: redis://redis:6379
+    expose:
+      - '3004'
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  notifications:
+    build:
+      context: .
+      dockerfile: packages/notifications/Dockerfile
+    profiles:
+      - app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3005
+      DB_SERVICE_URL: http://db:3003
+    expose:
+      - '3005'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  queue-enqueue:
+    build:
+      context: .
+      dockerfile: packages/queue/Dockerfile
+      target: enqueue
+    profiles:
+      - app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3006
+    expose:
+      - '3006'
+
+  queue-worker:
+    build:
+      context: .
+      dockerfile: packages/queue/Dockerfile
+      target: worker
+    profiles:
+      - app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_SERVICE_URL: http://db:3003
+      NOTIFICATIONS_SERVICE_URL: http://notifications:3005
+    depends_on:
+      db:
+        condition: service_healthy
+      notifications:
+        condition: service_healthy
+      queue-enqueue:
         condition: service_healthy
 
   api:
     build:
       context: .
-      target: api
+      dockerfile: packages/api/Dockerfile
     profiles:
       - app
     restart: unless-stopped
@@ -57,28 +155,26 @@ services:
       - '3001:3001'
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://torbook:torbook_dev@postgres:5432/torbook
+      PORT: 3001
       REDIS_URL: redis://redis:6379
+      SHARED_SERVICE_URL: http://shared:3002
+      DB_SERVICE_URL: http://db:3003
+      AUTH_SERVICE_URL: http://auth:3004
+      NOTIFICATIONS_SERVICE_URL: http://notifications:3005
+      QUEUE_SERVICE_URL: http://queue-enqueue:3006
     depends_on:
-      migrate:
+      db-migrate:
         condition: service_completed_successfully
+      shared:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+      queue-enqueue:
+        condition: service_healthy
       redis:
         condition: service_healthy
-
-  queue-worker:
-    build:
-      context: .
-      target: worker
-    profiles:
-      - app
-    restart: 'no'
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql://torbook:torbook_dev@postgres:5432/torbook
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
 
 volumes:
   torbook_pg_data:

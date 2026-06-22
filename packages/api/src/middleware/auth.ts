@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import { verifyAccessToken } from '@torbook/auth';
 import { API_ERROR_CODES, UserRole } from '@torbook/shared';
+import { authClient } from '../clients/auth.client.js';
 import { AppError } from '../utils/app-error.js';
 
 export type AuthenticatedRequest = Request & {
@@ -15,15 +15,17 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
     return;
   }
 
-  try {
-    const token = header.slice(7);
-    const payload = verifyAccessToken(token);
-    (req as AuthenticatedRequest).userId = payload.sub;
-    (req as AuthenticatedRequest).userRole = payload.role;
-    next();
-  } catch {
-    next(new AppError(401, API_ERROR_CODES.UNAUTHORIZED, 'סשן פג תוקף'));
-  }
+  const token = header.slice(7);
+  authClient
+    .verifyAccessToken(token)
+    .then((payload) => {
+      (req as AuthenticatedRequest).userId = payload.sub;
+      (req as AuthenticatedRequest).userRole = payload.role;
+      next();
+    })
+    .catch(() => {
+      next(new AppError(401, API_ERROR_CODES.UNAUTHORIZED, 'סשן פג תוקף'));
+    });
 }
 
 export function requireRole(...roles: UserRole[]) {

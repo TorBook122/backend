@@ -6,16 +6,15 @@ import { signAccessToken } from '@torbook/auth';
 import { AppointmentStatus } from '@torbook/shared';
 import { getRedis, disconnectRedis } from '../lib/redis.js';
 import { createApp } from '../app.js';
+import { startTestServices, stopTestServices } from './test-services.js';
 
 let app: Express;
 
 beforeAll(async () => {
-  process.env.JWT_ACCESS_SECRET = 'test-access-secret-min-32-chars-xx';
-  process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-min-32-chars-x';
-  process.env.AES_ENCRYPTION_KEY = '0000000000000000000000000000000000000000000000000000000000000000';
   process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
   process.env.NODE_ENV = 'test';
 
+  await startTestServices();
   app = createApp();
   await getRedis().connect();
 });
@@ -38,6 +37,7 @@ beforeEach(async () => {
 afterAll(async () => {
   await prisma.$disconnect();
   await disconnectRedis();
+  await stopTestServices();
 });
 
 async function withCsrf(

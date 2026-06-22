@@ -1,4 +1,4 @@
-import { startWorker } from '@torbook/queue';
+import { startWorker } from './lib/queue.js';
 
 startWorker().catch((err) => {
   // eslint-disable-next-line no-console

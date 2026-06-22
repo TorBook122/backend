@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { prisma } from '@torbook/db';
-import { decryptPii } from '@torbook/shared';
+import { sharedClient } from '../clients/shared.client.js';
+import { dbClient } from '../clients/db.client.js';
 import express, { type Request, type Response, Router } from 'express';
 import { asyncHandler } from '../utils/async-handler.js';
 import { getRedis } from '../lib/redis.js';
@@ -418,40 +418,35 @@ router.get(
     }
 
     const [businesses, users] = await Promise.all([
-      prisma.business.findMany({
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          category: true,
-          createdAt: true,
-          deletedAt: true,
-        },
-      }),
-      prisma.user.findMany({
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          name: true,
-          emailEnc: true,
-          role: true,
-          createdAt: true,
-          deletedAt: true,
-        },
-      }),
+      dbClient.businesses.listAdmin(),
+      dbClient.users.listAdmin(),
     ]);
 
-    const usersWithEmail = users.map((user) => ({
-      id: user.id,
-      name: user.name,
-      email: user.emailEnc ? decryptPii(user.emailEnc) : null,
-      role: user.role,
-      createdAt: user.createdAt,
-      deletedAt: user.deletedAt,
-    }));
+    const usersWithEmail = await Promise.all(
+      users.map(async (user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.emailEnc ? await sharedClient.decryptPii(user.emailEnc) : null,
+        role: user.role,
+        createdAt: user.createdAt,
+        deletedAt: user.deletedAt,
+      })),
+    );
 
-    res.type('html').send(renderDashboardPage(businesses, usersWithEmail));
+    res.type('html').send(
+      renderDashboardPage(
+        businesses.map((b) => ({
+          ...b,
+          createdAt: new Date(b.createdAt),
+          deletedAt: b.deletedAt ? new Date(b.deletedAt) : null,
+        })),
+        usersWithEmail.map((u) => ({
+          ...u,
+          createdAt: new Date(u.createdAt),
+          deletedAt: u.deletedAt ? new Date(u.deletedAt) : null,
+        })),
+      ),
+    );
   }),
 );
 

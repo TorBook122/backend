@@ -14,10 +14,6 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@torbook/auth": "workspace:*",
-    "@torbook/db": "workspace:*",
-    "@torbook/notifications": "workspace:*",
-    "@torbook/queue": "workspace:*",
     "@torbook/shared": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -27,6 +23,9 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@torbook/auth": "workspace:*",
+    "@torbook/db": "workspace:*",
+    "@torbook/queue": "workspace:*",
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",

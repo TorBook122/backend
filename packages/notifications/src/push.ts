@@ -1,4 +1,4 @@
-import { prisma } from '@torbook/db';
+import { deleteStaleFcmTokens, getFcmTokensByUserId } from './clients/db.client.js';
 
 export type PushPayload = {
   title: string;
@@ -34,7 +34,7 @@ async function initFirebase(): Promise<boolean> {
 }
 
 export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
-  const tokens = await prisma.fcmToken.findMany({ where: { userId } });
+  const tokens = await getFcmTokensByUserId(userId);
   if (tokens.length === 0) return;
 
   if (isLogOnlyMode()) {
@@ -74,6 +74,6 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
   );
 
   if (staleTokens.length > 0) {
-    await prisma.fcmToken.deleteMany({ where: { id: { in: staleTokens } } });
+    await deleteStaleFcmTokens(staleTokens);
   }
 }

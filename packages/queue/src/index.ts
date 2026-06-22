@@ -1,89 +1,38 @@
-export type QueueJobType = 'REMINDER' | 'CANCELLATION';
+import express, { type Express } from 'express';
+import { requireInternalKey } from '@torbook/shared/server/internal-auth';
+import { enqueueJob, type QueueJob } from './lib/queue.js';
 
-export type QueueJob = {
-  type: QueueJobType;
-  appointmentId: string;
-  scheduledAt: string;
-};
+const app: Express = express();
+app.use(express.json());
 
-function isLogOnlyMode(): boolean {
-  const queueUrl = process.env.AWS_SQS_QUEUE_URL?.trim();
-  if (!queueUrl) return true;
-  // Placeholder URL from .env.example — no real AWS queue in local dev
-  if (queueUrl.includes('000000000000')) return true;
-  return false;
-}
+app.get('/health', (_req, res) => {
+  res.json({ success: true, data: { status: 'ok' } });
+});
 
-export async function enqueueJob(job: QueueJob): Promise<void> {
-  if (isLogOnlyMode()) {
-    // eslint-disable-next-line no-console
-    console.log('[SQS log-only enqueue]', job);
+const internal = express.Router();
+internal.use(requireInternalKey);
+
+internal.post('/jobs', async (req, res) => {
+  const job = req.body as QueueJob;
+  if (!job?.type || !job?.appointmentId || !job?.scheduledAt) {
+    res.status(400).json({ success: false, error: 'type, appointmentId, and scheduledAt are required' });
     return;
   }
 
-  const { SQSClient, SendMessageCommand } = await import('@aws-sdk/client-sqs');
-  const client = new SQSClient({ region: process.env.AWS_REGION ?? 'us-east-1' });
-  const delaySeconds = Math.max(
-    0,
-    Math.min(900, Math.floor((new Date(job.scheduledAt).getTime() - Date.now()) / 1000)),
-  );
+  await enqueueJob(job);
+  res.status(202).json({ success: true, data: { enqueued: true } });
+});
 
-  await client.send(
-    new SendMessageCommand({
-      QueueUrl: process.env.AWS_SQS_QUEUE_URL,
-      MessageBody: JSON.stringify(job),
-      DelaySeconds: delaySeconds,
-    }),
-  );
-}
+app.use(internal);
 
-export async function processJob(job: QueueJob): Promise<void> {
-  const { handleReminder, handleCancellation } = await import('./handlers.js');
-  if (job.type === 'REMINDER') {
-    await handleReminder(job.appointmentId);
-  } else if (job.type === 'CANCELLATION') {
-    await handleCancellation(job.appointmentId);
-  }
-}
+const port = Number(process.env.PORT ?? 3006);
 
-export async function startWorker(): Promise<void> {
-  if (isLogOnlyMode()) {
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
     // eslint-disable-next-line no-console
-    console.log('[SQS worker] log-only mode — worker not started');
-    return;
-  }
-
-  const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } = await import('@aws-sdk/client-sqs');
-  const client = new SQSClient({ region: process.env.AWS_REGION ?? 'us-east-1' });
-  const queueUrl = process.env.AWS_SQS_QUEUE_URL!;
-
-  // eslint-disable-next-line no-console
-  console.log('[SQS worker] started');
-
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const response = await client.send(
-      new ReceiveMessageCommand({
-        QueueUrl: queueUrl,
-        MaxNumberOfMessages: 10,
-        WaitTimeSeconds: 20,
-      }),
-    );
-
-    for (const message of response.Messages ?? []) {
-      try {
-        const job = JSON.parse(message.Body!) as QueueJob;
-        await processJob(job);
-        await client.send(
-          new DeleteMessageCommand({
-            QueueUrl: queueUrl,
-            ReceiptHandle: message.ReceiptHandle!,
-          }),
-        );
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('[SQS worker] job failed', error);
-      }
-    }
-  }
+    console.log(`TorBook queue-enqueue service listening on port ${port}`);
+  });
 }
+
+export { enqueueJob, processJob, startWorker, type QueueJob, type QueueJobType } from './lib/queue.js';
+export default app;
