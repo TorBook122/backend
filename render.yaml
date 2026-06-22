@@ -55,6 +55,9 @@ services:
     runtime: docker
     dockerfilePath: ./packages/db/Dockerfile
     dockerContext: .
+    # Migration runs every time this service starts, before the app boots.
+    # If there's nothing new to migrate, Prisma exits immediately and start continues as normal.
+    dockerCommand: sh -c "pnpm exec prisma migrate deploy && node packages/db/dist/index.js"
     plan: free
     envVars:
       - key: NODE_ENV
@@ -143,15 +146,4 @@ services:
       - key: AWS_REGION
         sync: false
       - key: AWS_SQS_QUEUE_URL
-        sync: false
-
-  - type: job
-    name: torbook-db-migrate
-    runtime: docker
-    dockerfilePath: ./packages/db/Dockerfile
-    dockerContext: .
-    dockerCommand: pnpm exec prisma migrate deploy
-    plan: free
-    envVars:
-      - key: DATABASE_URL
         sync: false
