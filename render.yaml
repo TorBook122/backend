@@ -1,19 +1,79 @@
 services:
   - type: web
     name: torbook-api
-    runtime: node
+    runtime: docker
+    dockerfilePath: ./packages/api/Dockerfile
+    dockerContext: .
     plan: free
-    buildCommand: corepack enable && pnpm run render:build
-    startCommand: corepack enable && pnpm start
     healthCheckPath: /health
     envVars:
-      - key: SKIP_INSTALL_DEPS
-        value: "true"
-      - key: NODE_VERSION
-        value: "20.18.0"
       - key: NODE_ENV
         value: production
+      - key: INTERNAL_SERVICE_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SHARED_SERVICE_URL
+        fromService:
+          name: torbook-shared
+          type: pserv
+          property: hostport
+      - key: DB_SERVICE_URL
+        fromService:
+          name: torbook-db
+          type: pserv
+          property: hostport
+      - key: AUTH_SERVICE_URL
+        fromService:
+          name: torbook-auth
+          type: pserv
+          property: hostport
+      - key: QUEUE_SERVICE_URL
+        fromService:
+          name: torbook-queue-enqueue
+          type: pserv
+          property: hostport
+      - key: CORS_ORIGIN
+        sync: false
+
+  - type: pserv
+    name: torbook-shared
+    runtime: docker
+    dockerfilePath: ./packages/shared/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: INTERNAL_SERVICE_SECRET
+        sync: false
+      - key: AES_ENCRYPTION_KEY
+        sync: false
+
+  - type: pserv
+    name: torbook-db
+    runtime: docker
+    dockerfilePath: ./packages/db/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: INTERNAL_SERVICE_SECRET
+        sync: false
       - key: DATABASE_URL
+        sync: false
+
+  - type: pserv
+    name: torbook-auth
+    runtime: docker
+    dockerfilePath: ./packages/auth/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: INTERNAL_SERVICE_SECRET
         sync: false
       - key: REDIS_URL
         sync: false
@@ -21,39 +81,77 @@ services:
         sync: false
       - key: JWT_REFRESH_SECRET
         sync: false
-      - key: AES_ENCRYPTION_KEY
+
+  - type: pserv
+    name: torbook-notifications
+    runtime: docker
+    dockerfilePath: ./packages/notifications/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: INTERNAL_SERVICE_SECRET
         sync: false
+      - key: DB_SERVICE_URL
+        fromService:
+          name: torbook-db
+          type: pserv
+          property: hostport
       - key: FCM_SERVICE_ACCOUNT_JSON
+        sync: false
+
+  - type: pserv
+    name: torbook-queue-enqueue
+    runtime: docker
+    dockerfilePath: ./packages/queue/Dockerfile
+    dockerContext: .
+    dockerCommand: node packages/queue/dist/index.js
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: INTERNAL_SERVICE_SECRET
         sync: false
       - key: AWS_REGION
         sync: false
       - key: AWS_SQS_QUEUE_URL
         sync: false
-      - key: CORS_ORIGIN
-        sync: false
 
   - type: worker
     name: torbook-queue-worker
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./packages/queue/Dockerfile
     dockerContext: .
     dockerCommand: node packages/queue/dist/worker.js
     plan: free
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        fromService:
-          name: torbook-api
-          type: web
-          property: DATABASE_URL
-      - key: REDIS_URL
+      - key: INTERNAL_SERVICE_SECRET
         sync: false
+      - key: DB_SERVICE_URL
+        fromService:
+          name: torbook-db
+          type: pserv
+          property: hostport
+      - key: NOTIFICATIONS_SERVICE_URL
+        fromService:
+          name: torbook-notifications
+          type: pserv
+          property: hostport
       - key: AWS_REGION
         sync: false
       - key: AWS_SQS_QUEUE_URL
         sync: false
-      - key: FCM_SERVICE_ACCOUNT_JSON
-        sync: false
-      - key: AES_ENCRYPTION_KEY
+
+  - type: job
+    name: torbook-db-migrate
+    runtime: docker
+    dockerfilePath: ./packages/db/Dockerfile
+    dockerContext: .
+    dockerCommand: pnpm exec prisma migrate deploy
+    plan: free
+    envVars:
+      - key: DATABASE_URL
         sync: false
