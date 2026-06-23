@@ -1,3 +1,5 @@
+# TorBook backend — deploy as a Render Blueprint from the `backend/` directory.
+# All services below must exist; torbook-api alone cannot handle login/register.
 services:
   - type: web
     name: torbook-api

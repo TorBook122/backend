@@ -1,3 +1,5 @@
+import { buildServiceUrl } from './service-url.js';
+
 export type ServiceResponse<T> = {
   success: boolean;
   data?: T;
@@ -47,7 +49,7 @@ function internalHeaders(): Record<string, string> {
 }
 
 export async function internalGet<T>(baseUrl: string, path: string): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(buildServiceUrl(baseUrl, path), {
     method: 'GET',
     headers: internalHeaders(),
   });
@@ -55,7 +57,7 @@ export async function internalGet<T>(baseUrl: string, path: string): Promise<T> 
 }
 
 export async function internalPost<T>(baseUrl: string, path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(buildServiceUrl(baseUrl, path), {
     method: 'POST',
     headers: internalHeaders(),
     body: JSON.stringify(body),
@@ -64,7 +66,7 @@ export async function internalPost<T>(baseUrl: string, path: string, body: unkno
 }
 
 export async function internalPut<T>(baseUrl: string, path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(buildServiceUrl(baseUrl, path), {
     method: 'PUT',
     headers: internalHeaders(),
     body: JSON.stringify(body),
@@ -73,7 +75,7 @@ export async function internalPut<T>(baseUrl: string, path: string, body: unknow
 }
 
 export async function internalPatch<T>(baseUrl: string, path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(buildServiceUrl(baseUrl, path), {
     method: 'PATCH',
     headers: internalHeaders(),
     body: JSON.stringify(body),
@@ -82,7 +84,7 @@ export async function internalPatch<T>(baseUrl: string, path: string, body: unkn
 }
 
 export async function internalDelete<T>(baseUrl: string, path: string): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(buildServiceUrl(baseUrl, path), {
     method: 'DELETE',
     headers: internalHeaders(),
   });
