@@ -1,5 +1,10 @@
 # TorBook backend — deploy as a Render Blueprint from the `backend/` directory.
 # All services below must exist; torbook-api alone cannot handle login/register.
+#
+# NOTE on plans: Render's Free compute tier only exists for `type: web` services
+# (and managed Postgres/Key Value). Private Services (pserv) and Background
+# Workers (worker) have no Free instance type, so they're set to `starter`
+# (cheapest paid tier, ~$7/month each) below. torbook-api stays on `free`.
 services:
   - type: web
     name: torbook-api
@@ -43,7 +48,7 @@ services:
     runtime: docker
     dockerfilePath: ./packages/shared/Dockerfile
     dockerContext: .
-    plan: free
+    plan: starter
     envVars:
       - key: NODE_ENV
         value: production
@@ -60,7 +65,7 @@ services:
     # Migration runs every time this service starts, before the app boots.
     # If there's nothing new to migrate, Prisma exits immediately and start continues as normal.
     dockerCommand: sh -c "pnpm exec prisma migrate deploy && node packages/db/dist/index.js"
-    plan: free
+    plan: starter
     envVars:
       - key: NODE_ENV
         value: production
@@ -74,7 +79,7 @@ services:
     runtime: docker
     dockerfilePath: ./packages/auth/Dockerfile
     dockerContext: .
-    plan: free
+    plan: starter
     envVars:
       - key: NODE_ENV
         value: production
@@ -92,7 +97,7 @@ services:
     runtime: docker
     dockerfilePath: ./packages/notifications/Dockerfile
     dockerContext: .
-    plan: free
+    plan: starter
     envVars:
       - key: NODE_ENV
         value: production
@@ -112,7 +117,7 @@ services:
     dockerfilePath: ./packages/queue/Dockerfile
     dockerContext: .
     dockerCommand: node packages/queue/dist/index.js
-    plan: free
+    plan: starter
     envVars:
       - key: NODE_ENV
         value: production
@@ -129,7 +134,7 @@ services:
     dockerfilePath: ./packages/queue/Dockerfile
     dockerContext: .
     dockerCommand: node packages/queue/dist/worker.js
-    plan: free
+    plan: starter
     envVars:
       - key: NODE_ENV
         value: production
