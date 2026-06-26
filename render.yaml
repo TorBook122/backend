@@ -5,6 +5,8 @@
 # (and managed Postgres/Key Value). Private Services (pserv) and Background
 # Workers (worker) have no Free instance type, so they're set to `starter`
 # (cheapest paid tier, ~$7/month each) below. torbook-api stays on `free`.
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 services:
   - type: web
     name: torbook-api
