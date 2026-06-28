@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { prisma } from '@torbook/db';
+import { dbClient } from '../clients/db.client.js';
 
 export function auditLogger(action: string) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -9,17 +9,15 @@ export function auditLogger(action: string) {
         ? (body as { success: boolean }).success
         : res.statusCode < 400;
 
-      void prisma.auditLog
+      void dbClient.auditLogs
         .create({
-          data: {
-            action,
-            userId: (req as Request & { userId?: string }).userId ?? null,
-            ipAddress: req.ip,
-            metadata: {
-              path: req.path,
-              method: req.method,
-              success,
-            },
+          action,
+          userId: (req as Request & { userId?: string }).userId ?? null,
+          ipAddress: req.ip,
+          metadata: {
+            path: req.path,
+            method: req.method,
+            success,
           },
         })
         .catch(() => undefined);

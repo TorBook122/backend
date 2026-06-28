@@ -1,13 +1,6 @@
-import { prisma } from '@torbook/db';
-import { API_ERROR_CODES, UserRole, decryptPii, encryptPii, normalizePhone } from '@torbook/shared';
-import type {
-  AvailabilityDay,
-  BreakBlockDto,
-  BusinessListItem,
-  BusinessOwner,
-  BusinessPublic,
-  ServiceDto,
-} from '@torbook/shared';
+import { API_ERROR_CODES, UserRole, type AvailabilityDay, type BreakBlockDto, type BusinessListItem, type BusinessOwner, type BusinessPublic, type ServiceDto } from '@torbook/shared';
+import { dbClient, type DbBusiness } from '../clients/db.client.js';
+import { sharedClient } from '../clients/shared.client.js';
 import { AppError } from '../utils/app-error.js';
 import type {
   CreateBusinessBody,
@@ -35,8 +28,8 @@ async function uniqueSlug(name: string): Promise<string> {
   let attempt = 0;
   while (attempt < 20) {
     const candidate = attempt === 0 ? slug : `${slug}-${attempt}`;
-    const existing = await prisma.business.findUnique({ where: { slug: candidate } });
-    if (!existing) return candidate;
+    const existing = await dbClient.businesses.slugExists(candidate);
+    if (!existing.exists) return candidate;
     attempt += 1;
   }
   return `${slug}-${Date.now()}`;
@@ -51,29 +44,23 @@ function toServiceDto(s: { id: string; name: string; durationMins: number; price
   return { id: s.id, name: s.name, durationMins: s.durationMins, price: s.price, isVisible: s.isVisible };
 }
 
-async function getBusinessOrThrow(businessId: string) {
-  const business = await prisma.business.findFirst({
-    where: { id: businessId, deletedAt: null },
-    include: { availability: true, breakBlocks: true, services: { where: { isVisible: true } } },
-  });
-  if (!business) {
+async function getBusinessOrThrow(businessId: string): Promise<DbBusiness> {
+  try {
+    return await dbClient.businesses.findById(businessId, 'full');
+  } catch {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
   }
-  return business;
 }
 
 async function assertOwner(businessId: string, userId: string) {
-  const business = await prisma.business.findFirst({ where: { id: businessId, deletedAt: null } });
-  if (!business) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
-  }
+  const business = await getBusinessOrThrow(businessId);
   if (business.ownerId !== userId) {
     throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה לעסק זה');
   }
   return business;
 }
 
-function toPublic(business: Awaited<ReturnType<typeof getBusinessOrThrow>>): BusinessPublic {
+function toPublic(business: DbBusiness): BusinessPublic {
   return {
     id: business.id,
     name: business.name,
@@ -81,37 +68,34 @@ function toPublic(business: Awaited<ReturnType<typeof getBusinessOrThrow>>): Bus
     category: business.category,
     logoUrl: business.logoUrl,
     cancellationWindowHours: business.cancellationWindowHours,
-    availability: business.availability.map((a) => ({
+    availability: (business.availability ?? []).map((a) => ({
       dayOfWeek: a.dayOfWeek,
       isActive: a.isActive,
       startTime: a.startTime,
       endTime: a.endTime,
     })),
-    breaks: business.breakBlocks.map((b) => ({
+    breaks: (business.breakBlocks ?? []).map((b) => ({
       dayOfWeek: b.dayOfWeek,
       startTime: b.startTime,
       endTime: b.endTime,
     })),
-    services: business.services.map(toServiceDto),
+    services: (business.services ?? []).map(toServiceDto),
   };
 }
 
 export async function createBusiness(userId: string, input: CreateBusinessBody): Promise<BusinessOwner> {
-  const existing = await prisma.business.findUnique({ where: { ownerId: userId } });
+  const existing = await dbClient.businesses.findByOwnerId(userId);
   if (existing) {
     throw new AppError(409, API_ERROR_CODES.CONFLICT, 'כבר קיים עסק לחשבון זה');
   }
 
   const slug = await uniqueSlug(input.name);
-  const business = await prisma.business.create({
-    data: {
-      ownerId: userId,
-      name: input.name,
-      slug,
-      category: input.category ?? null,
-      phoneEnc: encryptPii(normalizePhone(input.phone)),
-    },
-    include: { availability: true, breakBlocks: true, services: true },
+  const business = await dbClient.businesses.create({
+    ownerId: userId,
+    name: input.name,
+    slug,
+    category: input.category ?? null,
+    phoneEnc: await sharedClient.encryptPii(await sharedClient.normalizePhone(input.phone)),
   });
 
   return {
@@ -127,75 +111,42 @@ export async function updateBusiness(
 ): Promise<BusinessOwner> {
   const business = await assertOwner(businessId, userId);
 
-  const updated = await prisma.business.update({
-    where: { id: business.id },
-    data: {
-      ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.category !== undefined ? { category: input.category } : {}),
-      ...(input.phone !== undefined ? { phoneEnc: encryptPii(normalizePhone(input.phone)) } : {}),
-      ...(input.cancellationWindowHours !== undefined
-        ? { cancellationWindowHours: input.cancellationWindowHours }
-        : {}),
-    },
-    include: { availability: true, breakBlocks: true, services: { where: { isVisible: true } } },
+  const updated = await dbClient.businesses.update(business.id, {
+    ...(input.name !== undefined ? { name: input.name } : {}),
+    ...(input.category !== undefined ? { category: input.category } : {}),
+    ...(input.phone !== undefined
+      ? { phoneEnc: await sharedClient.encryptPii(await sharedClient.normalizePhone(input.phone)) }
+      : {}),
+    ...(input.cancellationWindowHours !== undefined
+      ? { cancellationWindowHours: input.cancellationWindowHours }
+      : {}),
   });
 
   return {
     ...toPublic(updated),
-    phone: input.phone ?? decryptPii(updated.phoneEnc),
+    phone: input.phone ?? (await sharedClient.decryptPii(updated.phoneEnc)),
   };
 }
 
 export async function listPublicBusinesses(query?: string): Promise<BusinessListItem[]> {
-  const q = query?.trim();
-  const businesses = await prisma.business.findMany({
-    where: {
-      deletedAt: null,
-      owner: { onboardingCompletedAt: { not: null } },
-      ...(q
-        ? {
-            OR: [
-              { name: { contains: q, mode: 'insensitive' } },
-              { category: { contains: q, mode: 'insensitive' } },
-              { slug: { contains: q, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
-    },
-    select: { id: true, name: true, slug: true, category: true },
-    orderBy: { name: 'asc' },
-  });
-  return businesses;
+  return dbClient.businesses.listPublic(query);
 }
 
 export async function getBusinessBySlug(slug: string): Promise<BusinessPublic> {
-  const business = await prisma.business.findFirst({
-    where: { slug, deletedAt: null },
-    include: {
-      availability: true,
-      breakBlocks: true,
-      services: { where: { isVisible: true }, orderBy: { name: 'asc' } },
-    },
-  });
-  if (!business) {
+  try {
+    const business = await dbClient.businesses.findBySlug(slug, 'full');
+    return toPublic(business);
+  } catch {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
   }
-  return toPublic(business);
 }
 
 export async function getOwnerBusiness(userId: string): Promise<BusinessOwner | null> {
-  const business = await prisma.business.findFirst({
-    where: { ownerId: userId, deletedAt: null },
-    include: {
-      availability: true,
-      breakBlocks: true,
-      services: { orderBy: { name: 'asc' } },
-    },
-  });
+  const business = await dbClient.businesses.findByOwnerId(userId);
   if (!business) return null;
   return {
-    ...toPublic({ ...business, services: business.services.filter((s) => s.isVisible) }),
-    phone: decryptPii(business.phoneEnc),
+    ...toPublic({ ...business, services: (business.services ?? []).filter((s) => s.isVisible) }),
+    phone: await sharedClient.decryptPii(business.phoneEnc),
   };
 }
 
@@ -206,13 +157,7 @@ export async function updateAvailability(
 ): Promise<{ days: AvailabilityDay[]; warning: string | null }> {
   await assertOwner(businessId, userId);
 
-  const futureAppointments = await prisma.appointment.count({
-    where: {
-      businessId,
-      status: 'CONFIRMED',
-      startsAt: { gt: new Date() },
-    },
-  });
+  const { count: futureAppointments } = await dbClient.businesses.countFutureAppointments(businessId);
 
   for (const day of input.days) {
     if (day.isActive && parseTime(day.endTime) <= parseTime(day.startTime)) {
@@ -220,27 +165,7 @@ export async function updateAvailability(
     }
   }
 
-  await prisma.$transaction(
-    input.days.map((day) =>
-      prisma.availability.upsert({
-        where: { businessId_dayOfWeek: { businessId, dayOfWeek: day.dayOfWeek } },
-        create: {
-          businessId,
-          dayOfWeek: day.dayOfWeek,
-          isActive: day.isActive,
-          startTime: day.startTime,
-          endTime: day.endTime,
-        },
-        update: {
-          isActive: day.isActive,
-          startTime: day.startTime,
-          endTime: day.endTime,
-        },
-      }),
-    ),
-  );
-
-  const rows = await prisma.availability.findMany({ where: { businessId }, orderBy: { dayOfWeek: 'asc' } });
+  const rows = await dbClient.businesses.updateAvailability(businessId, input.days);
   return {
     days: rows.map((a) => ({
       dayOfWeek: a.dayOfWeek,
@@ -262,7 +187,8 @@ export async function updateBreaks(
 ): Promise<BreakBlockDto[]> {
   await assertOwner(businessId, userId);
 
-  const availability = await prisma.availability.findMany({ where: { businessId } });
+  const business = await getBusinessOrThrow(businessId);
+  const availability = business.availability ?? [];
 
   for (const brk of input.breaks) {
     const day = availability.find((a) => a.dayOfWeek === brk.dayOfWeek);
@@ -278,21 +204,7 @@ export async function updateBreaks(
     }
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.breakBlock.deleteMany({ where: { businessId } });
-    if (input.breaks.length > 0) {
-      await tx.breakBlock.createMany({
-        data: input.breaks.map((b) => ({
-          businessId,
-          dayOfWeek: b.dayOfWeek,
-          startTime: b.startTime,
-          endTime: b.endTime,
-        })),
-      });
-    }
-  });
-
-  const rows = await prisma.breakBlock.findMany({ where: { businessId }, orderBy: { dayOfWeek: 'asc' } });
+  const rows = await dbClient.businesses.updateBreaks(businessId, input.breaks);
   return rows.map((b) => ({ dayOfWeek: b.dayOfWeek, startTime: b.startTime, endTime: b.endTime }));
 }
 
@@ -302,8 +214,10 @@ export async function createService(
   input: CreateServiceBody,
 ): Promise<ServiceDto> {
   await assertOwner(businessId, userId);
-  const service = await prisma.service.create({
-    data: { businessId, name: input.name, durationMins: input.durationMins, price: input.price ?? 0 },
+  const service = await dbClient.services.create(businessId, {
+    name: input.name,
+    durationMins: input.durationMins,
+    price: input.price ?? 0,
   });
   return toServiceDto(service);
 }
@@ -313,44 +227,29 @@ export async function updateService(
   userId: string,
   input: UpdateServiceBody,
 ): Promise<ServiceDto> {
-  const service = await prisma.service.findUnique({ where: { id: serviceId }, include: { business: true } });
-  if (!service) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'שירות לא נמצא');
-  }
+  const service = await dbClient.services.findById(serviceId);
   if (service.business.ownerId !== userId) {
     throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
   }
 
-  const updated = await prisma.service.update({
-    where: { id: serviceId },
-    data: {
-      ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.durationMins !== undefined ? { durationMins: input.durationMins } : {}),
-      ...(input.price !== undefined ? { price: input.price } : {}),
-    },
+  const updated = await dbClient.services.update(serviceId, {
+    ...(input.name !== undefined ? { name: input.name } : {}),
+    ...(input.durationMins !== undefined ? { durationMins: input.durationMins } : {}),
+    ...(input.price !== undefined ? { price: input.price } : {}),
   });
   return toServiceDto(updated);
 }
 
 export async function deleteService(serviceId: string, userId: string): Promise<void> {
-  const service = await prisma.service.findUnique({ where: { id: serviceId }, include: { business: true } });
-  if (!service) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'שירות לא נמצא');
-  }
+  const service = await dbClient.services.findById(serviceId);
   if (service.business.ownerId !== userId) {
     throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
   }
 
-  const futureAppt = await prisma.appointment.findFirst({
-    where: {
-      serviceId,
-      status: 'CONFIRMED',
-      startsAt: { gt: new Date() },
-    },
-  });
+  const futureAppt = await dbClient.services.findFutureAppointment(serviceId);
 
   if (futureAppt) {
-    await prisma.service.update({ where: { id: serviceId }, data: { isVisible: false } });
+    await dbClient.services.update(serviceId, { isVisible: false });
     throw new AppError(
       409,
       API_ERROR_CODES.SERVICE_HAS_APPOINTMENTS,
@@ -358,22 +257,19 @@ export async function deleteService(serviceId: string, userId: string): Promise<
     );
   }
 
-  await prisma.service.delete({ where: { id: serviceId } });
+  await dbClient.services.delete(serviceId);
 }
 
 export async function listOwnerServices(businessId: string, userId: string): Promise<ServiceDto[]> {
   await assertOwner(businessId, userId);
-  const services = await prisma.service.findMany({ where: { businessId }, orderBy: { name: 'asc' } });
+  const services = await dbClient.services.listByBusiness(businessId);
   return services.map(toServiceDto);
 }
 
 export async function completeOnboarding(userId: string): Promise<void> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await dbClient.users.findById(userId);
   if (!user || user.role !== UserRole.BUSINESS_OWNER) {
     throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'רק בעלי עסק יכולים להשלים הגדרה');
   }
-  await prisma.user.update({
-    where: { id: userId },
-    data: { onboardingCompletedAt: new Date() },
-  });
+  await dbClient.users.completeOnboarding(userId);
 }
