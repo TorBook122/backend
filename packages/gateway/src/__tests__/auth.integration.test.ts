@@ -2,12 +2,19 @@ import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@torbook/db';
+<<<<<<< HEAD:packages/gateway/src/__tests__/auth.integration.test.ts
 import {
   clearAuthRedisKeys,
   startTestStack,
   stopTestStack,
   type TestStack,
 } from './helpers/test-servers.js';
+=======
+import { disconnectRedis, getRedis } from '../lib/redis.js';
+import { LOGIN_MAX_ATTEMPTS } from '@torbook/shared';
+import { createApp } from '../app.js';
+import { startTestServices, stopTestServices } from '../test-helpers/test-services.js';
+>>>>>>> e442cfe (Add E2E stack runner, expand test helpers with notifications, and reorganize deployment docs):packages/api/src/__tests__/auth.integration.test.ts
 
 let stack: TestStack;
 let app: Express;
