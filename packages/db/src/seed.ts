@@ -1,5 +1,5 @@
-import { AppointmentStatus, UserRole } from '@torbook/shared';
-import { hashPassword } from '@torbook/auth';
+import bcrypt from 'bcrypt';
+import { AppointmentStatus, BCRYPT_ROUNDS, UserRole } from '@torbook/shared';
 import {
   encryptPii,
   hashPii,
@@ -9,8 +9,8 @@ import {
 import { prisma } from './client.js';
 
 async function main() {
-  const ownerPassword = await hashPassword('Owner123!');
-  const customerPassword = await hashPassword('Customer123!');
+  const ownerPassword = await bcrypt.hash('Owner123!', BCRYPT_ROUNDS);
+  const customerPassword = await bcrypt.hash('Customer123!', BCRYPT_ROUNDS);
 
   const ownerEmail = 'michal@example.com';
   const ownerPhone = '0521234567';

@@ -1,0 +1,34 @@
+{
+  "name": "@torbook/gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@torbook/shared": "workspace:*",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^5.0.1",
+    "helmet": "^8.0.0",
+    "http-proxy-middleware": "^3.0.3",
+    "ioredis": "^5.4.2"
+  },
+  "devDependencies": {
+    "@torbook/db": "workspace:*",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "@types/supertest": "^6.0.2",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.2"
+  }
+}

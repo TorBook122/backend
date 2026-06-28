@@ -22,10 +22,12 @@
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.726.1",
     "@torbook/db": "workspace:*",
-    "@torbook/notifications": "workspace:*",
-    "@torbook/shared": "workspace:*"
+    "@torbook/shared": "workspace:*",
+    "express": "^5.0.1",
+    "firebase-admin": "^13.0.2"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
     "tsx": "^4.19.2"
   }

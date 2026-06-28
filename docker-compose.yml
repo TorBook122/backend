@@ -1,8 +1,28 @@
+x-app-env: &app-env
+  env_file: .env
+
+x-db-env: &db-env
+  DATABASE_URL: postgresql://torbook:torbook_dev@postgres:5432/torbook
+  REDIS_URL: redis://redis:6379
+
+x-sqs-env: &sqs-env
+  AWS_REGION: us-east-1
+  AWS_ENDPOINT_URL: http://localstack:4566
+  AWS_SQS_QUEUE_URL: http://localstack:4566/000000000000/torbook-dev
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+
+networks:
+  torbook-internal:
+    driver: bridge
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: torbook-postgres
     restart: unless-stopped
+    networks:
+      - torbook-internal
     ports:
       - '5433:5432'
     environment:
@@ -21,6 +41,8 @@ services:
     image: redis:7-alpine
     container_name: torbook-redis
     restart: unless-stopped
+    networks:
+      - torbook-internal
     ports:
       - '6379:6379'
     volumes:
@@ -31,55 +53,196 @@ services:
       timeout: 3s
       retries: 5
 
+  localstack:
+    image: localstack/localstack:3
+    container_name: torbook-localstack
+    restart: unless-stopped
+    networks:
+      - torbook-internal
+    ports:
+      - '4566:4566'
+    environment:
+      SERVICES: sqs
+      DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    volumes:
+      - torbook_localstack_data:/var/lib/localstack
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:4566/_localstack/health | grep -q sqs']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  sqs-init:
+    <<: *app-env
+    image: amazon/aws-cli:2.22.0
+    container_name: torbook-sqs-init
+    networks:
+      - torbook-internal
+    restart: 'no'
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name torbook-dev
+        echo "SQS queue torbook-dev ready"
+    depends_on:
+      localstack:
+        condition: service_healthy
+
   migrate:
+    <<: *app-env
     build:
       context: .
-      target: migrate
-    profiles:
-      - app
+      dockerfile: packages/db/Dockerfile
+    container_name: torbook-migrate
+    networks:
+      - torbook-internal
     restart: 'no'
-    env_file: .env
     environment:
-      DATABASE_URL: postgresql://torbook:torbook_dev@postgres:5432/torbook
-      REDIS_URL: redis://redis:6379
+      <<: *db-env
     depends_on:
       postgres:
         condition: service_healthy
 
-  api:
+  auth-service:
+    <<: *app-env
     build:
       context: .
-      target: api
-    profiles:
-      - app
+      dockerfile: packages/auth-service/Dockerfile
+    container_name: torbook-auth-service
+    networks:
+      - torbook-internal
     restart: unless-stopped
-    ports:
-      - '3001:3001'
-    env_file: .env
     environment:
-      DATABASE_URL: postgresql://torbook:torbook_dev@postgres:5432/torbook
-      REDIS_URL: redis://redis:6379
+      <<: *db-env
+      PORT: 3002
+      NODE_ENV: development
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3002/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
-  queue-worker:
+  booking-service:
+    <<: *app-env
     build:
       context: .
-      target: worker
-    profiles:
-      - app
-    restart: 'no'
-    env_file: .env
+      dockerfile: packages/booking-service/Dockerfile
+    container_name: torbook-booking-service
+    networks:
+      - torbook-internal
+    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://torbook:torbook_dev@postgres:5432/torbook
-      REDIS_URL: redis://redis:6379
+      <<: *db-env
+      PORT: 3003
+      NODE_ENV: development
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+      QUEUE_SERVICE_URL: http://notification-worker:3004
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      sqs-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3003/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  gateway:
+    <<: *app-env
+    build:
+      context: .
+      dockerfile: packages/gateway/Dockerfile
+    container_name: torbook-gateway
+    networks:
+      - torbook-internal
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      REDIS_URL: redis://redis:6379
+      PORT: 3001
+      NODE_ENV: development
+      AUTH_SERVICE_URL: http://auth-service:3002
+      BOOKING_SERVICE_URL: http://booking-service:3003
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3001/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  notification-worker:
+    <<: *app-env
+    build:
+      context: .
+      dockerfile: packages/queue/Dockerfile
+    container_name: torbook-notification-worker
+    networks:
+      - torbook-internal
+    restart: unless-stopped
+    environment:
+      <<: [*db-env, *sqs-env]
+      PORT: 3004
+      NODE_ENV: development
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      sqs-init:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3004/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   torbook_pg_data:
   torbook_redis_data:
+  torbook_localstack_data:

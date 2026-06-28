@@ -1,12 +1,9 @@
-export type QueueJobType = 'REMINDER' | 'CANCELLATION';
+export type { QueueJob, QueueJobType } from '@torbook/shared';
 
-export type QueueJob = {
-  type: QueueJobType;
-  appointmentId: string;
-  scheduledAt: string;
-};
+import type { QueueJob } from '@torbook/shared';
 
 function isLogOnlyMode(): boolean {
+  if (process.env.AWS_ENDPOINT_URL?.trim()) return false;
   const queueUrl = process.env.AWS_SQS_QUEUE_URL?.trim();
   if (!queueUrl) return true;
   // Placeholder URL from .env.example — no real AWS queue in local dev
@@ -22,7 +19,12 @@ export async function enqueueJob(job: QueueJob): Promise<void> {
   }
 
   const { SQSClient, SendMessageCommand } = await import('@aws-sdk/client-sqs');
-  const client = new SQSClient({ region: process.env.AWS_REGION ?? 'us-east-1' });
+  const client = new SQSClient({
+    region: process.env.AWS_REGION ?? 'us-east-1',
+    ...(process.env.AWS_ENDPOINT_URL
+      ? { endpoint: process.env.AWS_ENDPOINT_URL }
+      : {}),
+  });
   const delaySeconds = Math.max(
     0,
     Math.min(900, Math.floor((new Date(job.scheduledAt).getTime() - Date.now()) / 1000)),
@@ -38,12 +40,8 @@ export async function enqueueJob(job: QueueJob): Promise<void> {
 }
 
 export async function processJob(job: QueueJob): Promise<void> {
-  const { handleReminder, handleCancellation } = await import('./handlers.js');
-  if (job.type === 'REMINDER') {
-    await handleReminder(job.appointmentId);
-  } else if (job.type === 'CANCELLATION') {
-    await handleCancellation(job.appointmentId);
-  }
+  const { handlePushNotification } = await import('./handlers.js');
+  await handlePushNotification(job);
 }
 
 export async function startWorker(): Promise<void> {
@@ -54,7 +52,12 @@ export async function startWorker(): Promise<void> {
   }
 
   const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } = await import('@aws-sdk/client-sqs');
-  const client = new SQSClient({ region: process.env.AWS_REGION ?? 'us-east-1' });
+  const client = new SQSClient({
+    region: process.env.AWS_REGION ?? 'us-east-1',
+    ...(process.env.AWS_ENDPOINT_URL
+      ? { endpoint: process.env.AWS_ENDPOINT_URL }
+      : {}),
+  });
   const queueUrl = process.env.AWS_SQS_QUEUE_URL!;
 
   // eslint-disable-next-line no-console

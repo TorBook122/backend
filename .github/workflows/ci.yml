@@ -63,15 +63,19 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/torbook_test
 
-      - name: Run tests
+      - name: Run unit and integration tests
         run: pnpm -r run test --run
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/torbook_test
           REDIS_URL: redis://localhost:6379
           JWT_ACCESS_SECRET: test-access-secret-min-32-chars-xx
           JWT_REFRESH_SECRET: test-refresh-secret-min-32-chars-x
+          INTERNAL_SERVICE_SECRET: test-internal-service-secret
           AES_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
           FCM_SERVICE_ACCOUNT_JSON: '{"type":"service_account"}'
           AWS_REGION: us-east-1
           AWS_SQS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/000000000000/torbook-test
+          AUTH_SERVICE_URL: http://127.0.0.1:3002
+          BOOKING_SERVICE_URL: http://127.0.0.1:3003
+          QUEUE_SERVICE_URL: http://127.0.0.1:3004
           NODE_ENV: test
