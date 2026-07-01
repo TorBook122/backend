@@ -2,9 +2,8 @@ import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@torbook/db';
-import { signAccessToken } from '../../../../auth-service/src/lib/auth/jwt.js';
+import { signAccessToken } from './helpers/test-auth.js';
 import { AppointmentStatus } from '@torbook/shared';
-<<<<<<< HEAD:packages/gateway/src/__tests__/edge-cases.integration.test.ts
 import {
   clearAuthRedisKeys,
   clearBookingRedisKeys,
@@ -12,11 +11,7 @@ import {
   stopTestStack,
   type TestStack,
 } from './helpers/test-servers.js';
-=======
-import { getRedis, disconnectRedis } from '../lib/redis.js';
-import { createApp } from '../app.js';
-import { startTestServices, stopTestServices } from '../test-helpers/test-services.js';
->>>>>>> e442cfe (Add E2E stack runner, expand test helpers with notifications, and reorganize deployment docs):packages/api/src/__tests__/edge-cases.integration.test.ts
+import type { IntegrationTestAgent } from './helpers/test-agent.js';
 
 let stack: TestStack;
 let app: Express;
@@ -47,7 +42,7 @@ afterAll(async () => {
 });
 
 async function withCsrf(
-  agent: request.SuperAgentTest,
+  agent: IntegrationTestAgent,
   fn: (token: string) => request.Test,
 ) {
   const csrfRes = await agent.get('/api/v1/csrf');
@@ -56,7 +51,7 @@ async function withCsrf(
 }
 
 async function registerUser(
-  agent: request.SuperAgentTest,
+  agent: IntegrationTestAgent,
   data: { name: string; phone: string; email: string; password: string; role: string },
 ) {
   return withCsrf(agent, (token) =>

@@ -45,7 +45,28 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@25.9.2)
 
-<<<<<<< HEAD
+  ../e2e:
+    dependencies:
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
+    devDependencies:
+      '@axe-core/playwright':
+        specifier: ^4.10.0
+        version: 4.12.1(playwright-core@1.61.1)
+      '@playwright/test':
+        specifier: ^1.61.1
+        version: 1.61.1
+      '@types/node':
+        specifier: ^22.19.20
+        version: 22.19.20
+      '@types/pg':
+        specifier: ^8.20.0
+        version: 8.20.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   packages/auth-service:
     dependencies:
       '@torbook/db':
@@ -155,31 +176,6 @@ importers:
         version: 4.22.4
 
   packages/gateway:
-=======
-  ../e2e:
-    dependencies:
-      pg:
-        specifier: ^8.13.1
-        version: 8.22.0
-    devDependencies:
-      '@axe-core/playwright':
-        specifier: ^4.10.0
-        version: 4.12.1(playwright-core@1.61.1)
-      '@playwright/test':
-        specifier: ^1.61.1
-        version: 1.61.1
-      '@types/node':
-        specifier: ^22.19.20
-        version: 22.19.20
-      '@types/pg':
-        specifier: ^8.20.0
-        version: 8.20.0
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-
-  packages/api:
->>>>>>> e442cfe (Add E2E stack runner, expand test helpers with notifications, and reorganize deployment docs)
     dependencies:
       '@torbook/shared':
         specifier: workspace:*
@@ -206,15 +202,6 @@ importers:
       '@torbook/db':
         specifier: workspace:*
         version: link:../db
-<<<<<<< HEAD
-=======
-      '@torbook/notifications':
-        specifier: workspace:*
-        version: link:../notifications
-      '@torbook/queue':
-        specifier: workspace:*
-        version: link:../queue
->>>>>>> e442cfe (Add E2E stack runner, expand test helpers with notifications, and reorganize deployment docs)
       '@types/cookie-parser':
         specifier: ^1.4.8
         version: 1.4.10(@types/express@5.0.6)
@@ -266,10 +253,20 @@ importers:
         version: 4.22.4
 
   packages/shared:
+    dependencies:
+      express:
+        specifier: ^5.0.1
+        version: 5.2.1
     devDependencies:
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.6
       '@types/node':
         specifier: ^22.10.2
         version: 22.19.20
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.4
 
 packages:
 

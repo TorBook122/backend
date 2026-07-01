@@ -26,14 +26,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-<<<<<<< HEAD:packages/auth-service/package.json
     "@types/bcrypt": "^5.0.2",
-=======
-    "@torbook/auth": "workspace:*",
-    "@torbook/db": "workspace:*",
-    "@torbook/notifications": "workspace:*",
-    "@torbook/queue": "workspace:*",
->>>>>>> e442cfe (Add E2E stack runner, expand test helpers with notifications, and reorganize deployment docs):packages/api/package.json
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",

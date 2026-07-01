@@ -4,20 +4,7 @@
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
-<<<<<<< HEAD:packages/booking-service/package.json
-=======
   "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./server": {
-      "types": "./dist/server.d.ts",
-      "import": "./dist/server.js"
-    }
-  },
->>>>>>> e442cfe (Add E2E stack runner, expand test helpers with notifications, and reorganize deployment docs):packages/notifications/package.json
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
