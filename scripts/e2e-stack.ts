@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
+import { createApp } from '../packages/gateway/src/app.js';
+import { disconnectRedis, getRedis } from '../packages/gateway/src/lib/redis.js';
 import { startTestServices, stopTestServices } from '../packages/api/src/test-helpers/test-services.js';
-import { createApp } from '../packages/api/src/app.js';
-import { disconnectRedis, getRedis } from '../packages/api/src/lib/redis.js';
 
 const API_PORT = Number(process.env.PORT ?? 3001);
 

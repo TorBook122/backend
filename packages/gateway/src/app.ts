@@ -8,10 +8,11 @@ import { errorHandler } from './middleware/error-handler.js';
 import { proxyAuth } from './middleware/proxy-auth.js';
 import adminRoutes from './routes/admin.routes.js';
 
-function serviceProxy(target: string) {
+function serviceProxy(target: string, apiPrefix: string) {
   return createProxyMiddleware({
     target,
     changeOrigin: true,
+    pathRewrite: (path) => `${apiPrefix}${path}`,
     on: {
       proxyReq: fixRequestBody,
     },
@@ -59,11 +60,11 @@ export function createApp(): Express {
 
   app.get('/api/v1/csrf', issueCsrfToken);
 
-  app.use('/api/v1/auth', serviceProxy(authServiceUrl));
-  app.use('/api/v1/users', proxyAuth, serviceProxy(authServiceUrl));
-  app.use('/api/v1/businesses', proxyAuth, serviceProxy(bookingServiceUrl));
-  app.use('/api/v1/services', proxyAuth, serviceProxy(bookingServiceUrl));
-  app.use('/api/v1/appointments', proxyAuth, serviceProxy(bookingServiceUrl));
+  app.use('/api/v1/auth', serviceProxy(authServiceUrl, '/api/v1/auth'));
+  app.use('/api/v1/users', proxyAuth, serviceProxy(authServiceUrl, '/api/v1/users'));
+  app.use('/api/v1/businesses', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/businesses'));
+  app.use('/api/v1/services', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/services'));
+  app.use('/api/v1/appointments', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/appointments'));
 
   app.use(errorHandler);
 

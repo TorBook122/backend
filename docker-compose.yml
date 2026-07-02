@@ -12,6 +12,11 @@ x-sqs-env: &sqs-env
   AWS_ACCESS_KEY_ID: test
   AWS_SECRET_ACCESS_KEY: test
 
+x-internal-services: &internal-services
+  DB_SERVICE_URL: http://db-service:3010
+  SHARED_SERVICE_URL: http://shared-service:3011
+  INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+
 networks:
   torbook-internal:
     driver: bridge
@@ -111,6 +116,60 @@ services:
       postgres:
         condition: service_healthy
 
+  shared-service:
+    <<: *app-env
+    build:
+      context: .
+      dockerfile: packages/shared/Dockerfile
+    container_name: torbook-shared-service
+    networks:
+      - torbook-internal
+    restart: unless-stopped
+    environment:
+      PORT: 3011
+      NODE_ENV: development
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3011/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  db-service:
+    <<: *app-env
+    build:
+      context: .
+      dockerfile: packages/db/Dockerfile.service
+    container_name: torbook-db-service
+    networks:
+      - torbook-internal
+    restart: unless-stopped
+    environment:
+      <<: *db-env
+      PORT: 3010
+      NODE_ENV: development
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3010/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   auth-service:
     <<: *app-env
     build:
@@ -121,13 +180,16 @@ services:
       - torbook-internal
     restart: unless-stopped
     environment:
-      <<: *db-env
+      <<: [*db-env, *internal-services]
       PORT: 3002
       NODE_ENV: development
-      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
     depends_on:
       migrate:
         condition: service_completed_successfully
+      db-service:
+        condition: service_healthy
+      shared-service:
+        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -151,14 +213,17 @@ services:
       - torbook-internal
     restart: unless-stopped
     environment:
-      <<: *db-env
+      <<: [*db-env, *internal-services]
       PORT: 3003
       NODE_ENV: development
-      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
       QUEUE_SERVICE_URL: http://notification-worker:3004
     depends_on:
       migrate:
         condition: service_completed_successfully
+      db-service:
+        condition: service_healthy
+      shared-service:
+        condition: service_healthy
       redis:
         condition: service_healthy
       sqs-init:
@@ -220,13 +285,14 @@ services:
       - torbook-internal
     restart: unless-stopped
     environment:
-      <<: [*db-env, *sqs-env]
+      <<: [*db-env, *sqs-env, *internal-services]
       PORT: 3004
       NODE_ENV: development
-      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
     depends_on:
       migrate:
         condition: service_completed_successfully
+      db-service:
+        condition: service_healthy
       sqs-init:
         condition: service_completed_successfully
       localstack:
