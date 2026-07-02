@@ -40,19 +40,15 @@ export async function proxyAuth(req: Request, res: Response, next: NextFunction)
     });
 
     if (!response.ok) {
-      res.status(401).json({
-        success: false,
-        error: { code: API_ERROR_CODES.UNAUTHORIZED, message: 'סשן פג תוקף' },
-      });
+      delete req.headers.authorization;
+      next();
       return;
     }
 
     const body = (await response.json()) as ValidateResponse;
     if (!body.success || !body.data) {
-      res.status(401).json({
-        success: false,
-        error: { code: API_ERROR_CODES.UNAUTHORIZED, message: 'סשן פג תוקף' },
-      });
+      delete req.headers.authorization;
+      next();
       return;
     }
 

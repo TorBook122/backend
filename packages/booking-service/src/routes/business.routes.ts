@@ -15,7 +15,7 @@ router.post(
   asyncHandler(businessController.finishOnboarding),
 );
 
-router.get('/', requireAuth, asyncHandler(businessController.list));
+router.get('/', asyncHandler(businessController.list));
 router.post(
   '/',
   requireAuth,
