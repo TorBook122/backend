@@ -172,4 +172,23 @@ describe('auth integration (via gateway)', () => {
     expect(res.status).toBe(429);
     expect(res.body.error.code).toBe('RATE_LIMITED');
   });
+
+  it('accepts CSRF token from header when cross-site cookie is not sent (Safari mobile)', async () => {
+    const csrfRes = await request(app).get('/api/v1/csrf');
+    const token = csrfRes.body.data.csrfToken as string;
+
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .set('X-CSRF-Token', token)
+      .send({
+        name: 'נועה',
+        phone: '0543333333',
+        email: 'noa@example.com',
+        password: 'Password123',
+        role: 'CUSTOMER',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+  });
 });

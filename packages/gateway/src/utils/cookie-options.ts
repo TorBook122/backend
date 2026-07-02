@@ -19,7 +19,8 @@ export function crossSiteCookieOptions() {
   const needsCrossSiteCookies = origins.some((origin) => !isLocalOrigin(origin));
 
   if (needsCrossSiteCookies) {
-    return { sameSite: 'none' as const, secure: true };
+    // Partitioned (CHIPS) lets Safari iOS store cross-site cookies from GitHub Pages → API.
+    return { sameSite: 'none' as const, secure: true, partitioned: true as const };
   }
 
   return { sameSite: 'lax' as const, secure: false };

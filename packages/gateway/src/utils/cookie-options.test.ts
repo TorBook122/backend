@@ -20,11 +20,11 @@ describe('crossSiteCookieOptions', () => {
   it('uses cross-site cookies when any origin is non-local', () => {
     process.env.CORS_ORIGIN =
       'http://localhost:3000,http://127.0.0.1:3000,https://torbook122.github.io';
-    expect(crossSiteCookieOptions()).toEqual({ sameSite: 'none', secure: true });
+    expect(crossSiteCookieOptions()).toEqual({ sameSite: 'none', secure: true, partitioned: true });
   });
 
   it('uses cross-site cookies for production-only origins', () => {
     process.env.CORS_ORIGIN = 'https://torbook122.github.io';
-    expect(crossSiteCookieOptions()).toEqual({ sameSite: 'none', secure: true });
+    expect(crossSiteCookieOptions()).toEqual({ sameSite: 'none', secure: true, partitioned: true });
   });
 });
