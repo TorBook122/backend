@@ -10,6 +10,8 @@ RUN pnpm install --frozen-lockfile
 
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN pnpm --filter @torbook/db exec prisma generate
+RUN pnpm --filter @torbook/shared run build
+RUN pnpm --filter @torbook/db run build
 
 EXPOSE 3001
 
