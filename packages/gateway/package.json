@@ -4,8 +4,22 @@
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    },
+    "./app": {
+      "import": "./dist/app.js"
+    },
+    "./validate-env": {
+      "import": "./dist/config/validate-env.js"
+    },
+    "./redis": {
+      "import": "./dist/lib/redis.js"
+    }
+  },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "PORT=3001 tsx watch src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "lint": "eslint src",

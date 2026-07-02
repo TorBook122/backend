@@ -230,6 +230,34 @@ importers:
         specifier: ^4.19.2
         version: 4.22.4
 
+  packages/monolith:
+    dependencies:
+      '@torbook/auth-service':
+        specifier: workspace:*
+        version: link:../auth-service
+      '@torbook/booking-service':
+        specifier: workspace:*
+        version: link:../booking-service
+      '@torbook/db':
+        specifier: workspace:*
+        version: link:../db
+      '@torbook/gateway':
+        specifier: workspace:*
+        version: link:../gateway
+      '@torbook/queue':
+        specifier: workspace:*
+        version: link:../queue
+      '@torbook/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.20
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.4
+
   packages/queue:
     dependencies:
       '@aws-sdk/client-sqs':

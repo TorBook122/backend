@@ -2,27 +2,24 @@
 
 ## Role
 
-PII encryption, hashing, and normalization microservice. Also exports shared library code (types, HTTP client, internal auth middleware) used by all other packages. Server entry: [`packages/shared/src/server.ts`](../../packages/shared/src/server.ts).
+PII encryption, hashing, and normalization module. Also exports shared library code (types, HTTP client, internal auth middleware) used by all other packages. Server entry: [`packages/shared/src/server.ts`](../../packages/shared/src/server.ts).
 
-## Ports and Render config
+Runs as an **internal HTTP module** on loopback inside the unified process (port 3011 in dev/Docker).
+
+## Ports
 
 | Setting | Value |
 |---------|-------|
-| Port | 3002 |
-| Render service | `torbook-shared` |
-| Type | pserv (private) |
-| Plan | starter |
+| Port | 3011 (internal loopback) |
 | Health check | `/health` |
-| Dockerfile | `packages/shared/Dockerfile` |
 
 ## Environment variables
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `INTERNAL_SERVICE_SECRET` | yes | manual (`sync: false`) |
-| `AES_ENCRYPTION_KEY` | yes | manual — 64 hex chars (32 bytes) |
-| `PORT` | no | defaults to 3002 |
-| `NODE_ENV` | no | `production` on Render |
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `INTERNAL_SERVICE_SECRET` | yes | |
+| `AES_ENCRYPTION_KEY` | yes | 64 hex chars (32 bytes) |
+| `PORT` | no | set by monolith on loopback |
 
 See [`.env.example`](../../.env.example) for local placeholders.
 
@@ -40,19 +37,15 @@ All endpoints require `X-Internal-Key` header.
 
 ## Dependencies
 
-**Calls:** none (stateless crypto service)
+**Calls:** none (stateless crypto module)
 
-**Called by:** `torbook-api`, `torbook-db` (via HTTP client)
+**Called by:** `@torbook/auth-service`, `@torbook/booking-service`, `@torbook/db` (via HTTP client)
 
 Also imported as a library by every package for shared types and `@torbook/shared/server/internal-auth`.
 
-## Local development
-
-Started automatically by `pnpm docker:up` on port 3002 (internal only). For host dev, run the package dev script after `pnpm docker:infra`.
-
 ## Code conventions / change guidelines
 
-- Server endpoint changes affect **all services** that call shared via HTTP.
+- Server endpoint changes affect **all modules** that call shared via HTTP.
 - Library exports (types, utils, middleware) are consumed at build time — changes require rebuilding dependent packages.
 - Never log plaintext PII. Encryption uses AES-256-GCM via `AES_ENCRYPTION_KEY`.
 - Internal auth middleware lives at `@torbook/shared/server/internal-auth` — keep `INTERNAL_SERVICE_SECRET` validation consistent.

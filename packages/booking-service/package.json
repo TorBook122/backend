@@ -5,8 +5,17 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./app": {
+      "import": "./dist/app.js"
+    }
+  },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "PORT=3003 tsx watch src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",

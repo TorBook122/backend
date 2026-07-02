@@ -1,0 +1,27 @@
+{
+  "name": "@torbook/monolith",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@torbook/auth-service": "workspace:*",
+    "@torbook/booking-service": "workspace:*",
+    "@torbook/db": "workspace:*",
+    "@torbook/gateway": "workspace:*",
+    "@torbook/queue": "workspace:*",
+    "@torbook/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2"
+  }
+}

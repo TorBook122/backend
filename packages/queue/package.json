@@ -9,6 +9,9 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./api": {
+      "import": "./dist/api.js"
     }
   },
   "scripts": {
@@ -16,6 +19,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run --passWithNoTests",
+    "dev": "PORT=3004 tsx watch src/worker.ts",
     "worker": "tsx src/worker.ts",
     "start": "node dist/worker.js"
   },

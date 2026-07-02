@@ -1,68 +1,42 @@
-# torbook-queue (@torbook/queue)
+# @torbook/queue
 
 ## Role
 
-Async background jobs via AWS SQS. One package, two Render deployments:
+Async background jobs via AWS SQS. One package, two roles inside the unified process:
 
-- **Enqueue service** — HTTP endpoint to submit jobs
-- **Worker** — background process that polls SQS and executes jobs
+- **Enqueue API** — HTTP endpoint on loopback to submit jobs
+- **Worker** — background process that polls SQS and sends FCM push notifications
 
-Job types and queue logic: [`packages/queue/src/lib/queue.ts`](../../packages/queue/src/lib/queue.ts).
+Job types and handlers: [`packages/queue/src/handlers.ts`](../../packages/queue/src/handlers.ts). FCM delivery lives in [`packages/queue/src/lib/notifications/`](../../packages/queue/src/lib/notifications/).
 
-## Ports and Render config
+## Ports
 
-### Enqueue service
-
-| Setting | Value |
-|---------|-------|
-| Port | 3006 |
-| Render service | `torbook-queue-enqueue` |
-| Type | pserv (private) |
-| Plan | starter |
-| Health check | `/health` |
-| Start command | `node packages/queue/dist/index.js` |
-
-### Worker
-
-| Setting | Value |
-|---------|-------|
-| Render service | `torbook-queue-worker` |
-| Type | worker (no HTTP) |
-| Plan | starter |
-| Start command | `node packages/queue/dist/worker.js` |
-
-Both use `packages/queue/Dockerfile`.
+| Component | Port | Health check |
+|-----------|------|--------------|
+| Enqueue API | 3004 (internal loopback) | `GET /health` |
+| SQS worker | — (no HTTP) | — |
 
 ## Environment variables
 
-### torbook-queue-enqueue
+All variables are set on the unified `torbook` service (Render) or `.env` locally:
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `INTERNAL_SERVICE_SECRET` | yes | manual (`sync: false`) |
-| `AWS_REGION` | yes | manual |
-| `AWS_SQS_QUEUE_URL` | yes | manual — empty enables log-only mode |
-| `PORT` | no | defaults to 3006 |
-
-### torbook-queue-worker
-
-| Variable | Required | Source |
-|----------|----------|--------|
-| `INTERNAL_SERVICE_SECRET` | yes | manual (`sync: false`) |
-| `AWS_REGION` | yes | manual |
-| `AWS_SQS_QUEUE_URL` | yes | manual — empty enables log-only mode |
-| `DB_SERVICE_URL` | yes | auto (`fromService: torbook-db`) |
-| `NOTIFICATIONS_SERVICE_URL` | yes | auto (`fromService: torbook-notifications`) |
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `INTERNAL_SERVICE_SECRET` | yes | |
+| `AWS_REGION` | yes | |
+| `AWS_SQS_QUEUE_URL` | yes | empty or placeholder enables log-only mode |
+| `FCM_SERVICE_ACCOUNT_JSON` | yes | Firebase service account JSON string |
+| `DB_SERVICE_URL` | auto | set by monolith on loopback |
 
 See [`.env.example`](../../.env.example) for local placeholders.
 
 ## Internal endpoints (summary)
 
-Enqueue service only — worker has no HTTP.
+Enqueue API only — worker has no HTTP.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/jobs` | Enqueue a job (returns 202) |
+| `POST` | `/internal/v1/jobs` | Enqueue a job (returns 202) |
 
 ### Job types
 
@@ -71,27 +45,25 @@ Enqueue service only — worker has no HTTP.
 | `REMINDER` | Send appointment reminder push notification |
 | `CANCELLATION` | Send appointment cancellation push notification |
 
-Job payload: `{ type, appointmentId, scheduledAt }`. SQS delay is calculated from `scheduledAt`.
-
 ## Dependencies
 
-**Enqueue calls:** AWS SQS
+**Enqueue calls:** AWS SQS (or stdout in log-only mode)
 
-**Worker calls:** AWS SQS, `torbook-db`, `torbook-notifications`
+**Worker calls:** AWS SQS, `@torbook/db` (FCM token lookup), Firebase FCM
 
-**Called by:** `torbook-api` (via enqueue service)
+**Called by:** `@torbook/booking-service`
 
 ## Local development
 
-Both services start with `pnpm docker:up`. Set `AWS_SQS_QUEUE_URL` to empty or a placeholder account ID (`000000000000`) for **log-only mode**:
+Started with `pnpm dev:all` or `pnpm docker:up`. Set `AWS_SQS_QUEUE_URL` to empty or a placeholder account ID (`000000000000`) for **log-only mode**:
 
 - Enqueue logs jobs to stdout instead of sending to SQS
 - Worker does not start polling in log-only mode
 
 ## Code conventions / change guidelines
 
-- New job types are defined in `QueueJobType` in `packages/queue/src/lib/queue.ts`.
+- New job types are defined in `QueueJobType` in `@torbook/shared`.
 - Add a handler in `packages/queue/src/handlers.ts` and wire it in `processJob`.
-- Handlers call db and notifications via HTTP client — no direct database access.
+- Push delivery uses `@torbook/db` for token lookup — no separate notifications service.
 - SQS message delay is capped at 900 seconds (15 minutes) by AWS.
 - Keep enqueue idempotent where possible; the worker should handle duplicate delivery gracefully.

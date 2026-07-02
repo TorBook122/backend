@@ -9,7 +9,8 @@
     "yarn": "please-use-pnpm" 
   },
   "scripts": {
-    "dev": "echo 'Use Docker Compose: docker compose up -d --build'",
+    "dev": "pnpm dev:all",
+    "dev:all": "pnpm --parallel --filter @torbook/shared --filter @torbook/db --filter @torbook/auth-service --filter @torbook/booking-service --filter @torbook/queue --filter @torbook/gateway run dev",
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
@@ -17,13 +18,13 @@
     "db:generate": "pnpm --filter @torbook/db exec prisma generate",
     "db:migrate": "dotenv -e .env -- pnpm --filter @torbook/db exec prisma migrate dev",
     "db:seed": "dotenv -e .env -- pnpm --filter @torbook/db exec tsx src/seed.ts",
-    "docker:up": "docker compose --profile app up -d --build",
-    "docker:down": "docker compose --profile app down",
-    "docker:logs": "docker compose --profile app logs -f",
-    "docker:infra": "docker compose up -d postgres redis localstack",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:infra": "docker compose up -d postgres redis",
     "docker:ps": "docker compose ps",
     "e2e:stack": "dotenv -e .env -- tsx scripts/e2e-stack.ts",
-    "start": "pnpm --filter @torbook/api start",
+    "start": "pnpm --filter @torbook/monolith start",
     "render:build": "pnpm install --frozen-lockfile && pnpm db:generate && pnpm --filter @torbook/db exec prisma migrate deploy && pnpm -r run build"
   },
   "devDependencies": {

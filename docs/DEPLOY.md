@@ -4,23 +4,22 @@ Master reference for local development and Render deployment. Authoritative conf
 
 ## Architecture
 
+Production runs all backend modules in a **single Docker container** (`@torbook/monolith`). The gateway is the only public HTTP listener; internal modules communicate over loopback.
+
 ```mermaid
 flowchart TB
   subgraph public [Public]
     Client[Next.js_Client]
-    API[torbook-api_3001]
+    Gateway[gateway_3001]
   end
 
-  subgraph internal [Private_Services]
-    Shared[torbook-shared_3002]
-    DB[torbook-db_3003]
-    Auth[torbook-auth_3004]
-    Notif[torbook-notifications_3005]
-    Enqueue[torbook-queue-enqueue_3006]
-  end
-
-  subgraph async [Background]
-    Worker[torbook-queue-worker]
+  subgraph process [Single_Node_process]
+    Auth[auth-service]
+    Booking[booking-service]
+    DBmod[db]
+    Shared[shared]
+    QueueApi[queue_API]
+    Worker[queue_worker]
   end
 
   subgraph infra [Infrastructure]
@@ -30,37 +29,37 @@ flowchart TB
     FCM[Firebase_FCM]
   end
 
-  Client --> API
-  API --> Shared
-  API --> DB
-  API --> Auth
-  API --> Enqueue
-  API --> Redis
+  Client --> Gateway
+  Gateway --> Auth
+  Gateway --> Booking
+  Auth --> DBmod
+  Auth --> Shared
   Auth --> Redis
-  DB --> Postgres
-  Notif --> DB
-  Notif --> FCM
-  Enqueue --> SQS
+  Booking --> DBmod
+  Booking --> Shared
+  Booking --> QueueApi
+  Booking --> Redis
+  DBmod --> Postgres
+  QueueApi --> SQS
   Worker --> SQS
-  Worker --> DB
-  Worker --> Notif
+  Worker --> DBmod
+  Worker --> FCM
 ```
 
-**Key rule:** Only `torbook-api` is public. All other HTTP services require `X-Internal-Key: <INTERNAL_SERVICE_SECRET>` on every request (see `@torbook/shared/server/internal-auth`).
+**Key rule:** Only the gateway port is public. Internal HTTP calls use `X-Internal-Key: <INTERNAL_SERVICE_SECRET>` (see `@torbook/shared/server/internal-auth`).
 
-### Service and port table
+### Module and port table (loopback, dev/Docker)
 
-| Render service | Package | Type | Port | Plan |
-|----------------|---------|------|------|------|
-| `torbook-api` | `@torbook/api` | web (public) | 3001 | free |
-| `torbook-shared` | `@torbook/shared` | pserv | 3002 | starter |
-| `torbook-db` | `@torbook/db` | pserv | 3003 | starter |
-| `torbook-auth` | `@torbook/auth` | pserv | 3004 | starter |
-| `torbook-notifications` | `@torbook/notifications` | pserv | 3005 | starter |
-| `torbook-queue-enqueue` | `@torbook/queue` | pserv | 3006 | starter |
-| `torbook-queue-worker` | `@torbook/queue` | worker | — | starter |
+| Package | Port | Role |
+|---------|------|------|
+| `@torbook/gateway` | 3001 | Public gateway (only exposed port) |
+| `@torbook/auth-service` | 3002 | Auth and user routes |
+| `@torbook/booking-service` | 3003 | Businesses, appointments, favorites |
+| `@torbook/queue` | 3004 | Job enqueue API |
+| `@torbook/db` | 3010 | Prisma data layer |
+| `@torbook/shared` | 3011 | PII crypto |
 
-Private services and workers use Render's `starter` plan (~$7/month each). Only the public API web service can use the free tier.
+The SQS worker runs in the same process with no HTTP port.
 
 ---
 
@@ -74,19 +73,17 @@ Start Postgres and Redis, run services on the host:
 cp .env.example .env   # edit secrets as needed
 pnpm docker:infra      # postgres on :5433, redis on :6379
 pnpm db:migrate        # apply schema
-pnpm dev               # starts api on :3001 (other services must be running separately)
+pnpm dev:all           # all 6 modules via tsx watch (gateway on :3001)
 ```
-
-Individual package dev scripts are available under each `packages/*/package.json`.
 
 ### Option B — Full Docker stack
 
 ```bash
 cp .env.example .env
-pnpm docker:up         # profile `app` — builds and starts all services
+pnpm docker:up         # postgres + redis + unified app container
 ```
 
-Docker Compose overrides service URLs and database/redis connections for container networking. See [`docker-compose.yml`](../docker-compose.yml) for wiring. API is exposed on `http://localhost:3001`.
+Docker Compose runs `postgres`, `redis`, a one-shot `migrate`, and a single `app` container. API is exposed on `http://localhost:3001`.
 
 ### Environment file
 
@@ -100,33 +97,40 @@ Copy [`.env.example`](../.env.example) to `.env`. Never commit `.env`. Placehold
 
 1. Render Dashboard → **Blueprints** → **New Blueprint Instance**
 2. Connect your repo and set **Root Directory** to `backend`
-3. Render reads [`render.yaml`](../render.yaml) and creates all seven services
-4. Fill in secrets marked `sync: false` in the Dashboard (see matrix below)
-5. Set `CORS_ORIGIN` on `torbook-api` to your frontend origin (e.g. `https://torbook122.github.io`)
+3. Render reads [`render.yaml`](../render.yaml) and creates one web service: **`torbook`**
+4. Fill in all secrets marked `sync: false` in the Dashboard (see matrix below)
+5. Set `CORS_ORIGIN` to your frontend origin (e.g. `https://torbook122.github.io`)
 
-Service URLs (`SHARED_SERVICE_URL`, `DB_SERVICE_URL`, etc.) are wired automatically via `fromService: hostport`. The code adds `http://` when the value lacks a scheme.
+No inter-service URL wiring is needed — the monolith sets loopback URLs automatically at startup.
 
 ### Build and start behavior
 
-- **torbook-db** runs `prisma migrate deploy` on every container start before the app boots
-- **torbook-queue-enqueue** serves HTTP at port 3006
-- **torbook-queue-worker** has no HTTP — it polls SQS in the background
+- **Dockerfile:** [`Dockerfile`](../Dockerfile) at the backend root
+- **Build:** `pnpm install`, `prisma generate`, `pnpm -r run build`
+- **Start:** `prisma migrate deploy` then `node packages/monolith/dist/index.js`
+- **Health check:** `GET /health` on the public port
+
+The same `Dockerfile` works on Railway and other Docker hosts without changes.
 
 ---
 
 ## Secrets matrix
 
-Use the **same** `INTERNAL_SERVICE_SECRET` value on every service.
+All secrets are set on the single `torbook` service:
 
-| Render service | Required secrets (`sync: false`) | Auto-wired env vars |
-|----------------|----------------------------------|---------------------|
-| `torbook-api` | `INTERNAL_SERVICE_SECRET`, `REDIS_URL`, `CORS_ORIGIN` | `SHARED_SERVICE_URL`, `DB_SERVICE_URL`, `AUTH_SERVICE_URL`, `QUEUE_SERVICE_URL` |
-| `torbook-shared` | `INTERNAL_SERVICE_SECRET`, `AES_ENCRYPTION_KEY` | — |
-| `torbook-db` | `INTERNAL_SERVICE_SECRET`, `DATABASE_URL` | — |
-| `torbook-auth` | `INTERNAL_SERVICE_SECRET`, `REDIS_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | — |
-| `torbook-notifications` | `INTERNAL_SERVICE_SECRET`, `FCM_SERVICE_ACCOUNT_JSON` | `DB_SERVICE_URL` |
-| `torbook-queue-enqueue` | `INTERNAL_SERVICE_SECRET`, `AWS_REGION`, `AWS_SQS_QUEUE_URL` | — |
-| `torbook-queue-worker` | `INTERNAL_SERVICE_SECRET`, `AWS_REGION`, `AWS_SQS_QUEUE_URL` | `DB_SERVICE_URL`, `NOTIFICATIONS_SERVICE_URL` |
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `INTERNAL_SERVICE_SECRET` | yes | Same value used for all internal HTTP calls |
+| `DATABASE_URL` | yes | Render managed Postgres connection string |
+| `REDIS_URL` | yes | Render Key Value or external Redis URL |
+| `JWT_ACCESS_SECRET` | yes | `openssl rand -hex 32` |
+| `JWT_REFRESH_SECRET` | yes | `openssl rand -hex 32` |
+| `AES_ENCRYPTION_KEY` | yes | 64 hex characters (32 bytes) |
+| `CORS_ORIGIN` | yes | Comma-separated frontend origins |
+| `AWS_REGION` | yes | SQS region |
+| `AWS_SQS_QUEUE_URL` | yes | Empty or placeholder enables log-only mode |
+| `FCM_SERVICE_ACCOUNT_JSON` | yes | Firebase service account as single-line JSON |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | no | Admin panel credentials |
 
 ### Generating secrets
 
@@ -135,26 +139,17 @@ Use the **same** `INTERNAL_SERVICE_SECRET` value on every service.
 | `INTERNAL_SERVICE_SECRET` | Any strong random string |
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | `openssl rand -hex 32` |
 | `AES_ENCRYPTION_KEY` | 64 hex characters (32 bytes) |
-| `DATABASE_URL` | Render managed Postgres connection string |
-| `REDIS_URL` | Render Key Value or external Redis URL |
 | `FCM_SERVICE_ACCOUNT_JSON` | Firebase service account JSON as a single-line string |
-| `AWS_SQS_QUEUE_URL` | AWS SQS queue URL in the configured region |
 
 ---
 
 ## Boot order
 
-When bringing up a fresh environment, start or verify services in this order:
+When bringing up a fresh environment:
 
 1. **PostgreSQL** — managed database or local `docker:infra`
-2. **Migrations** — `pnpm db:migrate` locally, or automatic on `torbook-db` start in Render
-3. **torbook-db** — data layer must be up before services that query it
-4. **torbook-shared** — PII crypto used by api and db flows
-5. **torbook-auth** — requires Redis
-6. **torbook-notifications** — requires db for FCM token lookup
-7. **torbook-queue-enqueue** — job submission endpoint
-8. **torbook-queue-worker** — background job processor
-9. **torbook-api** — public gateway (depends on all of the above)
+2. **Migrations** — `pnpm db:migrate` locally, or automatic `prisma migrate deploy` on container start in production
+3. **Monolith** — starts internal modules on loopback, then gateway on `PORT`
 
 ---
 
@@ -163,7 +158,7 @@ When bringing up a fresh environment, start or verify services in this order:
 Set the Next.js client API URL to the public Render host:
 
 ```
-NEXT_PUBLIC_API_URL=https://<torbook-api-host>/api/v1
+NEXT_PUBLIC_API_URL=https://<torbook-host>/api/v1
 ```
 
 For GitHub Pages deployments, configure this as a GitHub Actions variable or environment secret.
@@ -172,59 +167,51 @@ For GitHub Pages deployments, configure this as a GitHub Actions variable or env
 
 ## Verify deployment
 
-1. **Health check:** `GET https://<torbook-api-host>/health` returns `{ "success": true, "data": { "status": "ok" } }`
-2. **Startup logs:** `TorBook API listening on port 3001` with no missing-env-var errors
+1. **Health check:** `GET https://<torbook-host>/health` returns `{ "success": true, "data": { "status": "ok" } }`
+2. **Startup logs:** `TorBook monolith ready on port …` with no missing-env-var errors
 3. **Auth smoke test:** Login with wrong credentials returns **401** (not 500)
-4. **Internal services:** Each private service exposes `/health` (reachable only on Render's internal network)
 
 ---
 
 ## Troubleshooting
 
-### "SHARED_SERVICE_URL is required" (or similar)
+### Missing required environment variables
 
-The API **cannot run alone**. It needs private services deployed and their URLs configured. With the Blueprint, `fromService: hostport` handles this automatically. If deploying manually, set all four service URLs on `torbook-api`:
-
-```
-SHARED_SERVICE_URL=http://<internal-address-of-shared>
-DB_SERVICE_URL=http://<internal-address-of-db>
-AUTH_SERVICE_URL=http://<internal-address-of-auth>
-QUEUE_SERVICE_URL=http://<internal-address-of-queue-enqueue>
-```
-
-Copy internal addresses from each private service → **Connect** → **Internal** in the Render Dashboard.
+The monolith validates gateway env vars at startup (`SHARED_SERVICE_URL`, `DB_SERVICE_URL`, `AUTH_SERVICE_URL`, etc.). These are set automatically on loopback — if validation fails, check that `NODE_ENV=production` and required secrets (`REDIS_URL`, `CORS_ORIGIN`, `INTERNAL_SERVICE_SECRET`) are present.
 
 ### Missing or mismatched secrets
 
-- Every service must have `INTERNAL_SERVICE_SECRET` set to the **same value**
-- `torbook-auth` exits on startup if Redis is unreachable — verify `REDIS_URL`
-- `torbook-db` returns 503 on `/health` if `DATABASE_URL` is wrong or Postgres is down
+- `INTERNAL_SERVICE_SECRET` must be set
+- Auth flows require a reachable `REDIS_URL`
+- `db` returns 503 on `/health` if `DATABASE_URL` is wrong or Postgres is down
 
 ### CORS errors from the frontend
 
-- `CORS_ORIGIN` on `torbook-api` must match the frontend origin exactly (scheme + host, no path suffix)
+- `CORS_ORIGIN` must match the frontend origin exactly (scheme + host, no path suffix)
 - Multiple origins are comma-separated: `https://torbook122.github.io,http://localhost:3000`
 - The `/admin` panel is same-origin HTML and does not use CORS
 
 ### Queue not processing jobs
 
-- Verify `AWS_SQS_QUEUE_URL` and `AWS_REGION` are set on both enqueue and worker services
+- Verify `AWS_SQS_QUEUE_URL` and `AWS_REGION` are set
 - Locally, an empty URL or placeholder account ID (`000000000000`) enables log-only mode — jobs are logged but not sent to SQS
 - The worker does not start polling in log-only mode
 
 ### Login returns 500 instead of 401
 
-Usually means a downstream private service is unreachable or misconfigured. Check `torbook-api` logs and verify all four service URLs and `INTERNAL_SERVICE_SECRET` match across services.
+Usually means an internal module failed to start or a secret is missing. Check container logs for errors during monolith startup.
 
 ---
 
 ## Service documentation
 
-Per-package guides with endpoints, env vars, and change guidelines:
+Per-module guides with endpoints, env vars, and change guidelines:
 
-- [`services/api.md`](services/api.md)
+- [`services/gateway.md`](services/gateway.md)
 - [`services/shared.md`](services/shared.md)
 - [`services/db.md`](services/db.md)
-- [`services/auth.md`](services/auth.md)
-- [`services/notifications.md`](services/notifications.md)
+- [`services/auth-service.md`](services/auth-service.md)
+- [`services/booking-service.md`](services/booking-service.md)
 - [`services/queue.md`](services/queue.md)
+
+Legacy docs (not active in deploy): [`services/api.md`](services/api.md), [`services/auth.md`](services/auth.md), [`services/notifications.md`](services/notifications.md).
