@@ -83,7 +83,7 @@ cp .env.example .env
 pnpm docker:up         # postgres + redis + unified app container
 ```
 
-Docker Compose runs `postgres`, `redis`, a one-shot `migrate`, and a single `app` container. API is exposed on `http://localhost:3001`.
+Docker Compose runs `postgres`, `redis`, and a single `app` container (3 long-running containers). The `app` container runs `prisma migrate deploy` on startup before launching all modules. API is exposed on `http://localhost:3001`.
 
 ### Environment file
 

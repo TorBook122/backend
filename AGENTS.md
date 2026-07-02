@@ -45,7 +45,7 @@ pnpm typecheck        # typecheck all packages
 pnpm test             # run all package tests
 pnpm db:migrate       # run Prisma migrations locally
 pnpm docker:infra     # start postgres (5433) + redis (6379) only
-pnpm docker:up        # full stack via docker compose (3 running containers + migrate)
+pnpm docker:up        # full stack via docker compose (3 containers: postgres, redis, app — migrations run inside app on startup)
 ```
 
 ## Critical rules

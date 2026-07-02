@@ -54,23 +54,6 @@ services:
       timeout: 3s
       retries: 5
 
-  migrate:
-    <<: *app-env
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: build
-    container_name: torbook-migrate
-    networks:
-      - torbook-internal
-    restart: 'no'
-    environment:
-      <<: *db-env
-    command: ['pnpm', '--filter', '@torbook/db', 'exec', 'prisma', 'migrate', 'deploy']
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   app:
     <<: *app-env
     build:
@@ -88,9 +71,8 @@ services:
       NODE_ENV: development
       AWS_SQS_QUEUE_URL: ''
       AWS_ENDPOINT_URL: ''
+    command: ['sh', '-c', 'pnpm --filter @torbook/db exec prisma migrate deploy && pnpm dev:all']
     depends_on:
-      migrate:
-        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
