@@ -7,7 +7,8 @@ import {
   parseJerusalemDateTime,
   toJerusalemDateString,
 } from '@torbook/shared';
-import type { AppointmentDto } from '@torbook/shared';
+import type { AppointmentDto, BusinessAppointmentStats } from '@torbook/shared';
+import { sharedClient } from '../clients/shared.client.js';
 import { queueClient } from '../lib/queue-client.js';
 import { AppError } from '../utils/app-error.js';
 import { computeAvailableSlots, getNextAvailableSlots, invalidateSlotCache } from './availability.service.js';
@@ -22,13 +23,14 @@ function toAppointmentDto(
   apt: {
     id: string;
     businessId: string;
+    customerId?: string;
     serviceId: string;
     startsAt: Date;
     endsAt: Date;
     status: string;
     business: { name: string; slug: string };
     service: { name: string; durationMins: number };
-    customer?: { name: string };
+    customer?: { name: string; phoneEnc?: string; emailEnc?: string | null };
   },
 ): AppointmentDto {
   return {
@@ -42,8 +44,40 @@ function toAppointmentDto(
     startsAt: apt.startsAt.toISOString(),
     endsAt: apt.endsAt.toISOString(),
     status: apt.status,
+    ...(apt.customerId ? { customerId: apt.customerId } : {}),
     ...(apt.customer ? { customerName: apt.customer.name } : {}),
   };
+}
+
+async function toOwnerAppointmentDto(
+  apt: Parameters<typeof toAppointmentDto>[0],
+): Promise<AppointmentDto> {
+  const base = toAppointmentDto(apt);
+  if (!apt.customer?.phoneEnc) return base;
+
+  const customerPhone = await sharedClient.decryptPii(apt.customer.phoneEnc);
+  const customerEmail = apt.customer.emailEnc
+    ? await sharedClient.decryptPii(apt.customer.emailEnc)
+    : undefined;
+
+  return {
+    ...base,
+    customerPhone,
+    ...(customerEmail ? { customerEmail } : {}),
+  };
+}
+
+const CANCELLED_STATUSES = ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_BUSINESS'] as const;
+
+async function assertBusinessOwner(businessId: string, userId: string) {
+  const business = await prisma.business.findFirst({ where: { id: businessId, deletedAt: null } });
+  if (!business) {
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
+  }
+  if (business.ownerId !== userId) {
+    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
+  }
+  return business;
 }
 
 export async function createAppointment(
@@ -245,19 +279,42 @@ export async function getCustomerAppointments(userId: string): Promise<{
   return { upcoming, past };
 }
 
+export async function getBusinessAppointmentStats(
+  businessId: string,
+  userId: string,
+  date?: string,
+): Promise<BusinessAppointmentStats> {
+  await assertBusinessOwner(businessId, userId);
+
+  const today = date ?? toJerusalemDateString(new Date());
+  const dayStart = parseJerusalemDateTime(today, '00:00');
+  const dayEnd = addMinutes(dayStart, 24 * 60);
+  const activeFilter = { status: { notIn: [...CANCELLED_STATUSES] } };
+
+  const [totalAllTime, todayTotal, todayConfirmed] = await Promise.all([
+    prisma.appointment.count({ where: { businessId, ...activeFilter } }),
+    prisma.appointment.count({
+      where: { businessId, startsAt: { gte: dayStart, lt: dayEnd }, ...activeFilter },
+    }),
+    prisma.appointment.count({
+      where: {
+        businessId,
+        startsAt: { gte: dayStart, lt: dayEnd },
+        status: AppointmentStatus.CONFIRMED,
+      },
+    }),
+  ]);
+
+  return { totalAllTime, todayTotal, todayConfirmed };
+}
+
 export async function getBusinessAppointments(
   businessId: string,
   userId: string,
   date?: string,
   view: 'day' | 'week' = 'day',
 ): Promise<AppointmentDto[]> {
-  const business = await prisma.business.findFirst({ where: { id: businessId, deletedAt: null } });
-  if (!business) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
-  }
-  if (business.ownerId !== userId) {
-    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
-  }
+  await assertBusinessOwner(businessId, userId);
 
   let startDate: Date;
   let endDate: Date;
@@ -284,12 +341,12 @@ export async function getBusinessAppointments(
     include: {
       business: { select: { name: true, slug: true } },
       service: { select: { name: true, durationMins: true } },
-      customer: { select: { name: true } },
+      customer: { select: { name: true, phoneEnc: true, emailEnc: true } },
     },
     orderBy: { startsAt: 'asc' },
   });
 
-  return appointments.map(toAppointmentDto);
+  return Promise.all(appointments.map(toOwnerAppointmentDto));
 }
 
 export async function createTimeBlock(

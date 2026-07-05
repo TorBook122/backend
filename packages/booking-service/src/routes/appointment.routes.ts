@@ -22,6 +22,12 @@ router.patch(
 router.get('/me/upcoming', requireAuth, asyncHandler(appointmentController.myAppointments));
 
 router.get(
+  '/business/:id/stats',
+  requireAuth,
+  requireRole(UserRole.BUSINESS_OWNER),
+  asyncHandler(appointmentController.businessAppointmentStats),
+);
+router.get(
   '/business/:id',
   requireAuth,
   requireRole(UserRole.BUSINESS_OWNER),

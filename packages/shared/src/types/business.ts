@@ -46,7 +46,16 @@ export type AppointmentDto = {
   startsAt: string;
   endsAt: string;
   status: string;
+  customerId?: string;
   customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+};
+
+export type BusinessAppointmentStats = {
+  totalAllTime: number;
+  todayTotal: number;
+  todayConfirmed: number;
 };
 
 export type BusinessListItem = {

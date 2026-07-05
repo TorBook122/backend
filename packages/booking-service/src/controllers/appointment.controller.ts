@@ -6,6 +6,7 @@ import {
   createAppointment,
   createTimeBlock,
   deleteTimeBlock,
+  getBusinessAppointmentStats,
   getBusinessAppointments,
   getCustomerAppointments,
   getTimeBlocks,
@@ -43,6 +44,12 @@ export async function businessAppointments(req: Request, res: Response) {
   const view = (req.query.view as 'day' | 'week') ?? 'day';
   const appointments = await getBusinessAppointments(param(req.params.id), getUserId(req), date, view);
   res.json({ success: true, data: appointments });
+}
+
+export async function businessAppointmentStats(req: Request, res: Response) {
+  const date = req.query.date as string | undefined;
+  const stats = await getBusinessAppointmentStats(param(req.params.id), getUserId(req), date);
+  res.json({ success: true, data: stats });
 }
 
 export async function addTimeBlock(req: Request, res: Response) {

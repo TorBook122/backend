@@ -45,6 +45,7 @@ const API_ROUTES = [
       'POST /api/v1/appointments/:slug/book',
       'PATCH /api/v1/appointments/:id/cancel',
       'GET /api/v1/appointments/me/upcoming',
+      'GET /api/v1/appointments/business/:id/stats',
       'GET /api/v1/appointments/business/:id',
       'POST /api/v1/appointments/business/:id/time-blocks',
       'DELETE /api/v1/appointments/business/:id/time-blocks/:blockId',

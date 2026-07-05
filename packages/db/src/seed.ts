@@ -45,11 +45,11 @@ async function main() {
 
   const business = await prisma.business.upsert({
     where: { slug: 'misperet-michal' },
-    update: {},
+    update: { name: 'עסק לבדיקה', slug: 'esek-lebedika' },
     create: {
       ownerId: owner.id,
-      name: 'מספרת מיכל',
-      slug: 'misperet-michal',
+      name: 'עסק לבדיקה',
+      slug: 'esek-lebedika',
       category: 'מספרה',
       phoneEnc: encryptPii(ownerPhone),
       cancellationWindowHours: 24,
@@ -58,11 +58,11 @@ async function main() {
 
   const haircut = await prisma.service.upsert({
     where: { id: 'seed-service-haircut' },
-    update: {},
+    update: { name: 'תספורת + זקן' },
     create: {
       id: 'seed-service-haircut',
       businessId: business.id,
-      name: 'תספורת גברים',
+      name: 'תספורת + זקן',
       durationMins: 30,
       price: 8000,
       isVisible: true,
