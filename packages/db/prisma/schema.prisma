@@ -37,9 +37,11 @@ model User {
 
   business      Business?
   appointments  Appointment[]
-  favorites     Favorite[]
-  fcmTokens     FcmToken[]
-  auditLogs     AuditLog[]
+  favorites        Favorite[]
+  businessLikes    BusinessLike[]
+  businessComments BusinessComment[]
+  fcmTokens        FcmToken[]
+  auditLogs        AuditLog[]
 
   @@index([role])
 }
@@ -63,7 +65,9 @@ model Business {
   breakBlocks   BreakBlock[]
   appointments  Appointment[]
   timeBlocks    TimeBlock[]
-  favorites     Favorite[]
+  favorites        Favorite[]
+  likes            BusinessLike[]
+  comments         BusinessComment[]
 
   @@index([slug])
 }
@@ -124,6 +128,7 @@ model Appointment {
   status     AppointmentStatus @default(CONFIRMED)
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
+  comment    BusinessComment?
 
   @@index([businessId, startsAt])
   @@index([customerId, startsAt])
@@ -151,6 +156,33 @@ model Favorite {
   createdAt  DateTime @default(now())
 
   @@unique([userId, businessId])
+}
+
+model BusinessLike {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, businessId])
+  @@index([businessId])
+}
+
+model BusinessComment {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId    String
+  business      Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  text          String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([businessId, createdAt])
 }
 
 model FcmToken {

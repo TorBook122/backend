@@ -73,6 +73,44 @@ export type FavoriteDto = {
   category: string | null;
 };
 
+export type BusinessCommentDto = {
+  id: string;
+  text: string;
+  authorName: string;
+  appointmentId: string;
+  serviceName: string;
+  visitDate: string;
+  createdAt: string;
+  updatedAt: string;
+  isMine?: boolean;
+};
+
+export type CommentableAppointmentDto = {
+  id: string;
+  serviceName: string;
+  startsAt: string;
+  endsAt: string;
+};
+
+export type BusinessEngagementDto = {
+  likeCount: number;
+  commentCount: number;
+  score: number;
+  likedByMe?: boolean;
+  commentableAppointments?: CommentableAppointmentDto[];
+};
+
+export type RankedBusinessDto = BusinessListItem & {
+  likeCount: number;
+  commentCount: number;
+  score: number;
+};
+
+export type CategoryRankingsDto = {
+  category: string;
+  businesses: RankedBusinessDto[];
+};
+
 export type TimeBlockDto = {
   id: string;
   startsAt: string;

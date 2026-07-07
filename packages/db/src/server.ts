@@ -6,6 +6,8 @@ import businessesRoutes from './routes/businesses.routes.js';
 import servicesRoutes from './routes/services.routes.js';
 import appointmentsRoutes from './routes/appointments.routes.js';
 import favoritesRoutes from './routes/favorites.routes.js';
+import likesRoutes from './routes/likes.routes.js';
+import commentsRoutes from './routes/comments.routes.js';
 import fcmTokensRoutes from './routes/fcm-tokens.routes.js';
 import auditLogsRoutes from './routes/audit-logs.routes.js';
 
@@ -29,6 +31,8 @@ internal.use('/businesses', businessesRoutes);
 internal.use('/services', servicesRoutes);
 internal.use('/appointments', appointmentsRoutes);
 internal.use('/favorites', favoritesRoutes);
+internal.use('/likes', likesRoutes);
+internal.use('/comments', commentsRoutes);
 internal.use('/fcm-tokens', fcmTokensRoutes);
 internal.use('/audit-logs', auditLogsRoutes);
 

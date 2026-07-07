@@ -77,6 +77,8 @@ export async function gdprDelete(userId: string, password: string) {
   await prisma.$transaction(async (tx) => {
     await tx.fcmToken.deleteMany({ where: { userId } });
     await tx.favorite.deleteMany({ where: { userId } });
+    await tx.businessLike.deleteMany({ where: { userId } });
+    await tx.businessComment.deleteMany({ where: { userId } });
 
     await tx.user.update({
       where: { id: userId },
