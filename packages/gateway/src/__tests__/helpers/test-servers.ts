@@ -1,6 +1,7 @@
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Express } from 'express';
+import dbApp from '@torbook/db/server';
 import { createApp as createAuthApp } from '../../../../auth-service/src/app.js';
 import { createApp as createBookingApp } from '../../../../booking-service/src/app.js';
 import { disconnectRedis as disconnectAuthRedis, getRedis as getAuthRedis } from '../../../../auth-service/src/lib/redis.js';
@@ -10,9 +11,11 @@ import { createApp as createGatewayApp } from '../../app.js';
 
 export type TestStack = {
   gateway: Express;
+  dbServer: Server;
   authServer: Server;
   bookingServer: Server;
   queueServer: Server;
+  dbPort: number;
   authPort: number;
   bookingPort: number;
   queuePort: number;
@@ -28,6 +31,10 @@ export async function startTestStack(): Promise<TestStack> {
 
   await Promise.all([getAuthRedis().connect(), getBookingRedis().connect()]);
 
+  const dbServer = dbApp.listen(0);
+  const dbPort = (dbServer.address() as AddressInfo).port;
+  process.env.DB_SERVICE_URL = `http://127.0.0.1:${dbPort}`;
+
   const authServer = createAuthApp().listen(0);
   const bookingServer = createBookingApp().listen(0);
   const queueServer = createQueueApp().listen(0);
@@ -42,11 +49,24 @@ export async function startTestStack(): Promise<TestStack> {
 
   const gateway = createGatewayApp();
 
-  return { gateway, authServer, bookingServer, queueServer, authPort, bookingPort, queuePort };
+  return {
+    gateway,
+    dbServer,
+    authServer,
+    bookingServer,
+    queueServer,
+    dbPort,
+    authPort,
+    bookingPort,
+    queuePort,
+  };
 }
 
 export async function stopTestStack(stack: TestStack): Promise<void> {
   await Promise.all([
+    new Promise<void>((resolve, reject) => {
+      stack.dbServer.close((err) => (err ? reject(err) : resolve()));
+    }),
     new Promise<void>((resolve, reject) => {
       stack.authServer.close((err) => (err ? reject(err) : resolve()));
     }),
