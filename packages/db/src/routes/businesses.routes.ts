@@ -164,6 +164,7 @@ router.get('/', async (req, res) => {
               { name: { contains: query, mode: 'insensitive' } },
               { category: { contains: query, mode: 'insensitive' } },
               { slug: { contains: query, mode: 'insensitive' } },
+              { address: { contains: query, mode: 'insensitive' } },
             ],
           }
         : {}),

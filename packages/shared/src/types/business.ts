@@ -25,6 +25,8 @@ export type BusinessPublic = {
   slug: string;
   category: string | null;
   logoUrl: string | null;
+  notes: string | null;
+  address: string | null;
   cancellationWindowHours: number;
   availability: AvailabilityDay[];
   breaks: BreakBlockDto[];

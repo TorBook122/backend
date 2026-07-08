@@ -2,6 +2,19 @@ import { z } from 'zod';
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+const logoUrlSchema = z
+  .string()
+  .max(300_000)
+  .nullable()
+  .refine(
+    (val) =>
+      val === null ||
+      val.startsWith('http://') ||
+      val.startsWith('https://') ||
+      /^data:image\/(jpeg|jpg|png|webp);base64,/.test(val),
+    { message: 'כתובת לוגו לא תקינה' },
+  );
+
 export const createBusinessSchema = z.object({
   name: z.string().min(2, 'שם העסק קצר מדי').max(100),
   category: z.string().max(50).optional(),
@@ -11,6 +24,9 @@ export const createBusinessSchema = z.object({
 export const updateBusinessSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   category: z.string().max(50).optional(),
+  notes: z.string().max(500).nullable().optional(),
+  address: z.string().max(200).nullable().optional(),
+  logoUrl: logoUrlSchema.optional(),
   phone: z.string().min(9).optional(),
   cancellationWindowHours: z.union([
     z.literal(1),

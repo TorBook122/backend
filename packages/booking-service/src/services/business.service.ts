@@ -67,6 +67,8 @@ function toPublic(business: DbBusiness): BusinessPublic {
     slug: business.slug,
     category: business.category,
     logoUrl: business.logoUrl,
+    notes: business.notes ?? null,
+    address: business.address ?? null,
     cancellationWindowHours: business.cancellationWindowHours,
     availability: (business.availability ?? []).map((a) => ({
       dayOfWeek: a.dayOfWeek,
@@ -114,6 +116,9 @@ export async function updateBusiness(
   const updated = await dbClient.businesses.update(business.id, {
     ...(input.name !== undefined ? { name: input.name } : {}),
     ...(input.category !== undefined ? { category: input.category } : {}),
+    ...(input.notes !== undefined ? { notes: input.notes } : {}),
+    ...(input.address !== undefined ? { address: input.address } : {}),
+    ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
     ...(input.phone !== undefined
       ? { phoneEnc: await sharedClient.encryptPii(await sharedClient.normalizePhone(input.phone)) }
       : {}),

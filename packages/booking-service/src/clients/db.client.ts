@@ -88,6 +88,8 @@ export type DbBusiness = {
   slug: string;
   category: string | null;
   logoUrl: string | null;
+  notes: string | null;
+  address: string | null;
   phoneEnc: string;
   cancellationWindowHours: number;
   deletedAt: Date | string | null;

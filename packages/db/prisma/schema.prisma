@@ -54,6 +54,8 @@ model Business {
   slug                    String    @unique
   category                String?
   logoUrl                 String?
+  notes                   String?
+  address                 String?
   phoneEnc                String
   cancellationWindowHours Int       @default(24)
   deletedAt               DateTime?
