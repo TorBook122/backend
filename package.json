@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "pnpm dev:all",
-    "dev:all": "pnpm --parallel --filter @torbook/shared --filter @torbook/db --filter @torbook/auth-service --filter @torbook/booking-service --filter @torbook/queue --filter @torbook/gateway run dev",
+    "dev:all": "dotenv -e .env -- pnpm --parallel --filter @torbook/shared --filter @torbook/db --filter @torbook/auth-service --filter @torbook/booking-service --filter @torbook/queue --filter @torbook/gateway run dev",
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
