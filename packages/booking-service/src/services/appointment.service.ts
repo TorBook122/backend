@@ -28,7 +28,7 @@ function toAppointmentDto(
     startsAt: Date;
     endsAt: Date;
     status: string;
-    business: { name: string; slug: string };
+    business: { name: string; slug: string; cancellationWindowHours?: number };
     service: { name: string; durationMins: number };
     customer?: { name: string; phoneEnc?: string; emailEnc?: string | null };
   },
@@ -46,6 +46,9 @@ function toAppointmentDto(
     status: apt.status,
     ...(apt.customerId ? { customerId: apt.customerId } : {}),
     ...(apt.customer ? { customerName: apt.customer.name } : {}),
+    ...(apt.business.cancellationWindowHours !== undefined
+      ? { cancellationWindowHours: apt.business.cancellationWindowHours }
+      : {}),
   };
 }
 
@@ -139,7 +142,7 @@ export async function createAppointment(
           status: AppointmentStatus.CONFIRMED,
         },
         include: {
-          business: { select: { name: true, slug: true } },
+          business: { select: { name: true, slug: true, cancellationWindowHours: true } },
           service: { select: { name: true, durationMins: true } },
         },
       });

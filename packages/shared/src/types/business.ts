@@ -52,6 +52,7 @@ export type AppointmentDto = {
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
+  cancellationWindowHours?: number;
 };
 
 export type BusinessAppointmentStats = {
