@@ -8,6 +8,7 @@ export type AccessTokenPayload = {
   sub: string;
   role: string;
   onboardingCompletedAt: string | null;
+  hasPhone: boolean;
   type?: 'access';
 };
 
@@ -23,11 +24,13 @@ export async function signAccessToken(
   sub: string,
   role: string,
   onboardingCompletedAt: string | null = null,
+  hasPhone = true,
 ): Promise<string> {
   const data = await internalPost<{ accessToken: string }>(getBaseUrl(), '/tokens/access', {
     sub,
     role,
     onboardingCompletedAt,
+    hasPhone,
   });
   return data.accessToken;
 }

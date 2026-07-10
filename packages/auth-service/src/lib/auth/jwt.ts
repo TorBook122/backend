@@ -9,6 +9,7 @@ export type AccessTokenPayload = {
   sub: string;
   role: string;
   onboardingCompletedAt: string | null;
+  hasPhone: boolean;
   type: 'access';
 };
 
@@ -34,11 +35,13 @@ export function signAccessToken(
   userId: string,
   role: string,
   onboardingCompletedAt: string | null = null,
+  hasPhone = true,
 ): string {
   const payload: AccessTokenPayload = {
     sub: userId,
     role,
     onboardingCompletedAt,
+    hasPhone,
     type: 'access',
   };
   return jwt.sign(payload, getAccessSecret(), { expiresIn: ACCESS_TOKEN_TTL_SECONDS });

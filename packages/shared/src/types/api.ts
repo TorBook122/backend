@@ -7,6 +7,7 @@ export type AuthUser = {
   name: string;
   role: string;
   onboardingCompletedAt: string | null;
+  hasPhone: boolean;
 };
 
 export type AuthTokens = {

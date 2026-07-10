@@ -24,6 +24,7 @@ export async function startTestStack(): Promise<TestStack> {
   process.env.INTERNAL_SERVICE_SECRET = 'test-internal-service-secret';
   process.env.AES_ENCRYPTION_KEY = '0000000000000000000000000000000000000000000000000000000000000000';
   process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
+  process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com';
   process.env.NODE_ENV = 'test';
 
   await Promise.all([getAuthRedis().connect(), getBookingRedis().connect()]);

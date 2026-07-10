@@ -42,6 +42,7 @@ router.post(
           userId: payload.sub,
           role: payload.role,
           onboardingCompletedAt: payload.onboardingCompletedAt,
+          hasPhone: payload.hasPhone ?? true,
         },
       });
     } catch {

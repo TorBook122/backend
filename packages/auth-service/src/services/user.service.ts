@@ -1,7 +1,32 @@
 import { prisma } from '@torbook/db';
+import { signAccessToken } from '../lib/auth/jwt.js';
 import { verifyPassword } from '../lib/auth/password.js';
-import { API_ERROR_CODES, AppointmentStatus, type AuthUser } from '@torbook/shared';
+import {
+  API_ERROR_CODES,
+  AppointmentStatus,
+  encryptPii,
+  hashPii,
+  normalizePhone,
+  type AuthTokens,
+  type AuthUser,
+} from '@torbook/shared';
 import { AppError } from '../utils/app-error.js';
+
+function toAuthUser(user: {
+  id: string;
+  name: string;
+  role: string;
+  onboardingCompletedAt: Date | null;
+  phoneHash: string | null;
+}): AuthUser {
+  return {
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
+    hasPhone: !!user.phoneHash,
+  };
+}
 
 export async function getProfile(userId: string): Promise<AuthUser> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -9,18 +34,51 @@ export async function getProfile(userId: string): Promise<AuthUser> {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'משתמש לא נמצא');
   }
 
-  return {
-    id: user.id,
-    name: user.name,
-    role: user.role,
-    onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
-  };
+  return toAuthUser(user);
+}
+
+export async function completePhone(userId: string, phone: string): Promise<AuthTokens> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.deletedAt) {
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'משתמש לא נמצא');
+  }
+
+  if (user.phoneHash) {
+    throw new AppError(409, API_ERROR_CODES.CONFLICT, 'מספר טלפון כבר קיים בחשבון');
+  }
+
+  const phoneHash = hashPii(normalizePhone(phone));
+  const existingPhone = await prisma.user.findUnique({ where: { phoneHash } });
+  if (existingPhone) {
+    throw new AppError(409, API_ERROR_CODES.DUPLICATE_PHONE, 'מספר טלפון כבר רשום. נסה מספר אחר.');
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      phoneEnc: encryptPii(normalizePhone(phone)),
+      phoneHash,
+    },
+  });
+
+  const accessToken = signAccessToken(
+    updated.id,
+    updated.role,
+    updated.onboardingCompletedAt?.toISOString() ?? null,
+    !!updated.phoneHash,
+  );
+
+  return { accessToken, user: toAuthUser(updated) };
 }
 
 async function verifyUserPassword(userId: string, password: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.deletedAt) {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'משתמש לא נמצא');
+  }
+
+  if (!user.passwordHash) {
+    throw new AppError(401, API_ERROR_CODES.WRONG_PASSWORD, 'סיסמה שגויה');
   }
 
   const valid = await verifyPassword(password, user.passwordHash);

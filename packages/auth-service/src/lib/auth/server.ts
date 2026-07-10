@@ -48,10 +48,11 @@ const internal = express.Router();
 internal.use(requireInternalKey);
 
 internal.post('/tokens/access', (req, res) => {
-  const { sub, role, onboardingCompletedAt } = req.body as {
+  const { sub, role, onboardingCompletedAt, hasPhone } = req.body as {
     sub?: unknown;
     role?: unknown;
     onboardingCompletedAt?: string | null;
+    hasPhone?: boolean;
   };
 
   if (typeof sub !== 'string' || typeof role !== 'string') {
@@ -63,6 +64,7 @@ internal.post('/tokens/access', (req, res) => {
     sub,
     role,
     onboardingCompletedAt === undefined ? null : onboardingCompletedAt,
+    hasPhone ?? true,
   );
   res.json({ success: true, data: { accessToken } });
 });

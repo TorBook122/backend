@@ -8,10 +8,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./app": {
-      "import": "./dist/app.js"
+      "import": "./dist/app.js",
+      "default": "./dist/app.js"
     }
   },
   "scripts": {
@@ -29,6 +31,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^5.0.1",
+    "google-auth-library": "^9.15.1",
     "helmet": "^8.0.0",
     "ioredis": "^5.4.2",
     "jsonwebtoken": "^9.0.2",

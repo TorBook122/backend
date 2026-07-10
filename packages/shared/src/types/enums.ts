@@ -3,6 +3,11 @@ export enum UserRole {
   BUSINESS_OWNER = 'BUSINESS_OWNER',
 }
 
+export enum AuthProvider {
+  LOCAL = 'LOCAL',
+  GOOGLE = 'GOOGLE',
+}
+
 export enum AppointmentStatus {
   PENDING = 'PENDING',
   CONFIRMED = 'CONFIRMED',

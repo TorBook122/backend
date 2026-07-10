@@ -30,8 +30,8 @@ export async function startTestServices(): Promise<void> {
   process.env.DATABASE_URL =
     process.env.DATABASE_URL ?? 'postgresql://torbook:torbook_dev@localhost:5433/torbook';
   process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
-  process.env.AWS_SQS_QUEUE_URL = process.env.AWS_SQS_QUEUE_URL ?? '';
-  process.env.AWS_ENDPOINT_URL = process.env.AWS_ENDPOINT_URL ?? '';
+  process.env.AWS_ENDPOINT_URL = '';
+  process.env.AWS_SQS_QUEUE_URL = '';
   process.env.FCM_SERVICE_ACCOUNT_JSON =
     process.env.FCM_SERVICE_ACCOUNT_JSON ?? '{"type":"service_account"}';
 

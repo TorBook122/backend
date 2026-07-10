@@ -9,10 +9,15 @@ export const gdprDeleteSchema = z.object({
   confirm: z.literal(true, { errorMap: () => ({ message: 'יש לאשר מחיקת נתונים' }) }),
 });
 
+export const completePhoneSchema = z.object({
+  phone: z.string().min(9, 'מספר טלפון לא תקין'),
+});
+
 export const fcmTokenSchema = z.object({
   token: z.string().min(10, 'טוקן FCM לא תקין'),
 });
 
 export type DeleteAccountBody = z.infer<typeof deleteAccountSchema>;
 export type GdprDeleteBody = z.infer<typeof gdprDeleteSchema>;
+export type CompletePhoneBody = z.infer<typeof completePhoneSchema>;
 export type FcmTokenBody = z.infer<typeof fcmTokenSchema>;
