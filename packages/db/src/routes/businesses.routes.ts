@@ -1,7 +1,78 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../client.js';
 
 const router = Router();
+
+type RankedRow = {
+  id: string;
+  name: string;
+  slug: string;
+  category: string | null;
+  like_count: number;
+  comment_count: number;
+  score: number;
+};
+
+router.get('/rankings', async (req, res) => {
+  const categoriesParam = typeof req.query.categories === 'string' ? req.query.categories : '';
+  const categories = categoriesParam
+    .split(',')
+    .map((category) => category.trim())
+    .filter(Boolean);
+
+  if (categories.length === 0) {
+    res.status(400).json({ success: false, error: 'categories query param is required' });
+    return;
+  }
+
+  const data = await Promise.all(
+    categories.map(async (category) => {
+      const businesses = await prisma.$queryRaw<RankedRow[]>(Prisma.sql`
+        SELECT
+          b.id,
+          b.name,
+          b.slug,
+          b.category,
+          COALESCE(l.like_count, 0)::int AS like_count,
+          COALESCE(c.comment_count, 0)::int AS comment_count,
+          (COALESCE(l.like_count, 0) + COALESCE(c.comment_count, 0))::int AS score
+        FROM "Business" b
+        INNER JOIN "User" u ON b."ownerId" = u.id
+        LEFT JOIN (
+          SELECT "businessId", COUNT(*)::int AS like_count
+          FROM "BusinessLike"
+          GROUP BY "businessId"
+        ) l ON l."businessId" = b.id
+        LEFT JOIN (
+          SELECT "businessId", COUNT(*)::int AS comment_count
+          FROM "BusinessComment"
+          GROUP BY "businessId"
+        ) c ON c."businessId" = b.id
+        WHERE b."deletedAt" IS NULL
+          AND u."onboardingCompletedAt" IS NOT NULL
+          AND b.category = ${category}
+        ORDER BY score DESC, b.name ASC
+        LIMIT 10
+      `);
+
+      return {
+        category,
+        businesses: businesses.map((row) => ({
+          id: row.id,
+          name: row.name,
+          slug: row.slug,
+          category: row.category,
+          likeCount: row.like_count,
+          commentCount: row.comment_count,
+          score: row.score,
+        })),
+      };
+    }),
+  );
+
+  res.json({ success: true, data });
+});
 
 function parseTime(t: string): number {
   const [h, m] = t.split(':').map(Number);
@@ -93,6 +164,7 @@ router.get('/', async (req, res) => {
               { name: { contains: query, mode: 'insensitive' } },
               { category: { contains: query, mode: 'insensitive' } },
               { slug: { contains: query, mode: 'insensitive' } },
+              { address: { contains: query, mode: 'insensitive' } },
             ],
           }
         : {}),

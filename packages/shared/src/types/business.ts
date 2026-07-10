@@ -25,6 +25,8 @@ export type BusinessPublic = {
   slug: string;
   category: string | null;
   logoUrl: string | null;
+  notes: string | null;
+  address: string | null;
   cancellationWindowHours: number;
   availability: AvailabilityDay[];
   breaks: BreakBlockDto[];
@@ -50,6 +52,7 @@ export type AppointmentDto = {
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
+  cancellationWindowHours?: number;
 };
 
 export type BusinessAppointmentStats = {
@@ -71,6 +74,44 @@ export type FavoriteDto = {
   name: string;
   slug: string;
   category: string | null;
+};
+
+export type BusinessCommentDto = {
+  id: string;
+  text: string;
+  authorName: string;
+  appointmentId: string;
+  serviceName: string;
+  visitDate: string;
+  createdAt: string;
+  updatedAt: string;
+  isMine?: boolean;
+};
+
+export type CommentableAppointmentDto = {
+  id: string;
+  serviceName: string;
+  startsAt: string;
+  endsAt: string;
+};
+
+export type BusinessEngagementDto = {
+  likeCount: number;
+  commentCount: number;
+  score: number;
+  likedByMe?: boolean;
+  commentableAppointments?: CommentableAppointmentDto[];
+};
+
+export type RankedBusinessDto = BusinessListItem & {
+  likeCount: number;
+  commentCount: number;
+  score: number;
+};
+
+export type CategoryRankingsDto = {
+  category: string;
+  businesses: RankedBusinessDto[];
 };
 
 export type TimeBlockDto = {

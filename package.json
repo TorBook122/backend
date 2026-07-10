@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "pnpm dev:all",
-    "dev:all": "pnpm --parallel --filter @torbook/shared --filter @torbook/db --filter @torbook/auth-service --filter @torbook/booking-service --filter @torbook/queue --filter @torbook/gateway run dev",
+    "dev:all": "dotenv -e .env -- pnpm --parallel --filter @torbook/shared --filter @torbook/db --filter @torbook/auth-service --filter @torbook/booking-service --filter @torbook/queue --filter @torbook/gateway run dev",
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
@@ -19,6 +19,7 @@
     "db:migrate": "dotenv -e .env -- pnpm --filter @torbook/db exec prisma migrate dev",
     "db:migrate:deploy": "dotenv -e .env -- pnpm --filter @torbook/db exec prisma migrate deploy",
     "db:seed": "dotenv -e .env -- pnpm --filter @torbook/db exec tsx src/seed.ts",
+    "db:studio": "dotenv -e .env -- pnpm --filter @torbook/db exec prisma studio",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",

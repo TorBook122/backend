@@ -34,6 +34,20 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   next();
 }
 
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const expectedSecret = process.env.INTERNAL_SERVICE_SECRET;
+  const secret = headerValue(req.headers['x-internal-secret']);
+  const userId = headerValue(req.headers['x-user-id']);
+  const userRole = headerValue(req.headers['x-user-role']);
+
+  if (expectedSecret && secret === expectedSecret && userId && userRole) {
+    (req as AuthenticatedRequest).userId = userId;
+    (req as AuthenticatedRequest).userRole = userRole;
+  }
+
+  next();
+}
+
 export function requireRole(...roles: UserRole[]) {
   return (req: Request, _res: Response, next: NextFunction) => {
     const role = (req as AuthenticatedRequest).userRole;

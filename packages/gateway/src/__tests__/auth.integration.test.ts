@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@torbook/db';
+import { LOGIN_MAX_ATTEMPTS } from '@torbook/shared';
 import {
   clearAuthRedisKeys,
   startTestStack,
@@ -153,7 +154,7 @@ describe('auth integration (via gateway)', () => {
         }),
     );
 
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0; i < LOGIN_MAX_ATTEMPTS; i += 1) {
       await withCsrf(agent, (token) =>
         agent
           .post('/api/v1/auth/login')

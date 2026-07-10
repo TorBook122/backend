@@ -88,6 +88,8 @@ export type DbBusiness = {
   slug: string;
   category: string | null;
   logoUrl: string | null;
+  notes: string | null;
+  address: string | null;
   phoneEnc: string;
   cancellationWindowHours: number;
   deletedAt: Date | string | null;
@@ -156,6 +158,90 @@ export const dbClient = {
       dbPut<Array<{ dayOfWeek: number; startTime: string; endTime: string }>>(
         `/businesses/${encodeURIComponent(id)}/breaks`,
         { breaks },
+      ),
+    getRankings: (categories: string[]) =>
+      dbGet<Array<{
+        category: string;
+        businesses: Array<{
+          id: string;
+          name: string;
+          slug: string;
+          category: string | null;
+          likeCount: number;
+          commentCount: number;
+          score: number;
+        }>;
+      }>>(`/businesses/rankings?categories=${encodeURIComponent(categories.join(','))}`),
+  },
+
+  likes: {
+    upsert: (userId: string, businessId: string) =>
+      dbPost<{ id: string }>('/likes/upsert', { userId, businessId }),
+    remove: (userId: string, businessId: string) =>
+      dbDelete<{ removed: boolean }>(
+        `/likes/user/${encodeURIComponent(userId)}/business/${encodeURIComponent(businessId)}`,
+      ),
+    count: (businessId: string) =>
+      dbGet<{ count: number }>(`/likes/business/${encodeURIComponent(businessId)}/count`),
+    exists: (userId: string, businessId: string) =>
+      dbGet<{ exists: boolean }>(
+        `/likes/user/${encodeURIComponent(userId)}/business/${encodeURIComponent(businessId)}/exists`,
+      ),
+  },
+
+  comments: {
+    listByBusiness: (businessId: string, userId?: string) => {
+      const qs = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+      return dbGet<Array<{
+        id: string;
+        text: string;
+        authorName: string;
+        appointmentId: string;
+        serviceName: string;
+        visitDate: string;
+        createdAt: string;
+        updatedAt: string;
+        isMine?: boolean;
+      }>>(`/comments/business/${encodeURIComponent(businessId)}${qs}`);
+    },
+    count: (businessId: string) =>
+      dbGet<{ count: number }>(`/comments/business/${encodeURIComponent(businessId)}/count`),
+    listCommentable: (userId: string, businessId: string) =>
+      dbGet<Array<{
+        id: string;
+        serviceName: string;
+        startsAt: string;
+        endsAt: string;
+      }>>(
+        `/comments/commentable/user/${encodeURIComponent(userId)}/business/${encodeURIComponent(businessId)}`,
+      ),
+    create: (userId: string, businessId: string, appointmentId: string, text: string) =>
+      dbPost<{
+        id: string;
+        text: string;
+        authorName: string;
+        appointmentId: string;
+        serviceName: string;
+        visitDate: string;
+        createdAt: string;
+        updatedAt: string;
+        isMine?: boolean;
+      }>('/comments/create', { userId, businessId, appointmentId, text }),
+    update: (commentId: string, userId: string, text: string) =>
+      dbPut<{
+        id: string;
+        text: string;
+        authorName: string;
+        appointmentId: string;
+        serviceName: string;
+        visitDate: string;
+        createdAt: string;
+        updatedAt: string;
+        isMine?: boolean;
+      }>(`/comments/${encodeURIComponent(commentId)}`, { userId, text }),
+    remove: (commentId: string, userId: string) =>
+      dbDelete<{ deleted: boolean }>(
+        `/comments/${encodeURIComponent(commentId)}/user/${encodeURIComponent(userId)}`,
       ),
   },
 

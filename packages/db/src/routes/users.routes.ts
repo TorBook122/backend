@@ -76,6 +76,8 @@ router.post('/:id/gdpr-delete', async (req, res) => {
   await prisma.$transaction(async (tx) => {
     await tx.fcmToken.deleteMany({ where: { userId } });
     await tx.favorite.deleteMany({ where: { userId } });
+    await tx.businessLike.deleteMany({ where: { userId } });
+    await tx.businessComment.deleteMany({ where: { userId } });
     await tx.user.update({
       where: { id: userId },
       data: {

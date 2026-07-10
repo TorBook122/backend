@@ -32,3 +32,14 @@ export const API_ERROR_CODES = {
 } as const;
 
 export const SLOT_CACHE_TTL_SECONDS = 30;
+
+export const BUSINESS_CATEGORIES = [
+  'יופי וטיפוח',
+  'ספרות',
+  'כושר ובריאות',
+  'רפואה',
+  'פיננסים',
+  'ייעוץ',
+  'בייביסיטר',
+  'אחר',
+] as const;
