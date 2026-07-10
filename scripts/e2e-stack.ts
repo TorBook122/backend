@@ -32,7 +32,9 @@ async function shutdown(apiServer: ReturnType<typeof createServer>): Promise<voi
 
 async function main(): Promise<void> {
   process.env.NODE_ENV = process.env.NODE_ENV ?? 'development';
-  process.env.AWS_SQS_QUEUE_URL = process.env.AWS_SQS_QUEUE_URL ?? '';
+  // E2E runs without LocalStack — force log-only queue so booking/cancel do not hit SQS.
+  process.env.AWS_ENDPOINT_URL = '';
+  process.env.AWS_SQS_QUEUE_URL = '';
   process.env.PORT = String(API_PORT);
   process.env.CORS_ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
 

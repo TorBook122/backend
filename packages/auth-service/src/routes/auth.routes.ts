@@ -8,6 +8,7 @@ const router = Router();
 
 router.post('/register', auditLogger('auth.register'), asyncHandler(authController.register));
 router.post('/login', loginRateLimiter, auditLogger('auth.login'), asyncHandler(authController.login));
+router.post('/google', auditLogger('auth.google'), asyncHandler(authController.google));
 router.post('/refresh', auditLogger('auth.refresh'), asyncHandler(authController.refresh));
 router.post('/logout', auditLogger('auth.logout'), asyncHandler(authController.logout));
 

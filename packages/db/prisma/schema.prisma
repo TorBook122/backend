@@ -12,6 +12,11 @@ enum UserRole {
   BUSINESS_OWNER
 }
 
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
 enum AppointmentStatus {
   PENDING
   CONFIRMED
@@ -25,10 +30,12 @@ model User {
   id                    String    @id @default(cuid())
   name                  String
   emailEnc              String?
-  emailHash             String?   @unique
-  phoneEnc              String
-  phoneHash             String    @unique
-  passwordHash          String
+  emailHash             String?      @unique
+  phoneEnc              String?
+  phoneHash             String?      @unique
+  passwordHash          String?
+  provider              AuthProvider @default(LOCAL)
+  googleId              String?      @unique
   role                  UserRole
   onboardingCompletedAt DateTime?
   deletedAt             DateTime?

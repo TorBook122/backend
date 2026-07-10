@@ -8,10 +8,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./api": {
-      "import": "./dist/api.js"
+      "import": "./dist/api.js",
+      "default": "./dist/api.js"
     }
   },
   "scripts": {

@@ -18,5 +18,11 @@ export const loginSchema = z.object({
   rememberMe: z.boolean().optional().default(false),
 });
 
+export const googleAuthSchema = z.object({
+  idToken: z.string().min(10),
+  role: z.nativeEnum(UserRole).optional(),
+});
+
 export type RegisterBody = z.infer<typeof registerSchema>;
 export type LoginBody = z.infer<typeof loginSchema>;
+export type GoogleAuthBody = z.infer<typeof googleAuthSchema>;

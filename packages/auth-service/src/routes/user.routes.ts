@@ -9,6 +9,13 @@ const router = Router();
 
 router.get('/me', requireAuth, asyncHandler(userController.getMe));
 
+router.patch(
+  '/me/phone',
+  requireAuth,
+  auditLogger('user.complete_phone'),
+  asyncHandler(userController.completePhone),
+);
+
 router.delete(
   '/me',
   requireAuth,

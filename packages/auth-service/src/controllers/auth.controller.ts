@@ -7,11 +7,12 @@ import {
 import {
   loginUser,
   logoutUser,
+  googleAuthUser,
   refreshSession,
   registerUser,
 } from '../services/auth.service.js';
 import { AppError } from '../utils/app-error.js';
-import { loginSchema, registerSchema } from '../validators/auth.validator.js';
+import { googleAuthSchema, loginSchema, registerSchema } from '../validators/auth.validator.js';
 
 export async function register(req: Request, res: Response) {
   const parsed = registerSchema.safeParse(req.body);
@@ -59,4 +60,16 @@ export async function logout(req: Request, res: Response) {
   const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] as string | undefined;
   await logoutUser(refreshToken, res);
   res.json({ success: true, data: { loggedOut: true } });
+}
+
+export async function google(req: Request, res: Response) {
+  const parsed = googleAuthSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const message = parsed.error.errors[0]?.message ?? 'נתונים לא תקינים';
+    throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, message);
+  }
+
+  const tokens = await googleAuthUser(parsed.data, res);
+  (req as Request & { userId?: string }).userId = tokens.user.id;
+  res.json({ success: true, data: tokens });
 }

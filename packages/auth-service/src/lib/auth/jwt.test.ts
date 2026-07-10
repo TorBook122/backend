@@ -13,12 +13,19 @@ beforeEach(() => {
 
 describe('jwt', () => {
   it('signs and verifies access tokens', () => {
-    const token = signAccessToken('user-1', 'CUSTOMER', null);
+    const token = signAccessToken('user-1', 'CUSTOMER', null, true);
     const payload = verifyAccessToken(token);
     expect(payload.sub).toBe('user-1');
     expect(payload.role).toBe('CUSTOMER');
     expect(payload.onboardingCompletedAt).toBeNull();
+    expect(payload.hasPhone).toBe(true);
     expect(payload.type).toBe('access');
+  });
+
+  it('includes hasPhone false when specified', () => {
+    const token = signAccessToken('user-1', 'CUSTOMER', null, false);
+    const payload = verifyAccessToken(token);
+    expect(payload.hasPhone).toBe(false);
   });
 
   it('signs and verifies refresh tokens', () => {
