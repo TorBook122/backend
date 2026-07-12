@@ -32,7 +32,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run --passWithNoTests",
-    "dev": "PORT=3011 tsx watch src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js"
   },
   "dependencies": {
