@@ -13,8 +13,8 @@ import {
   API_ERROR_CODES,
   AuthProvider,
   REFRESH_COOKIE_NAME,
-  decryptPii,
   encryptPii,
+  tryDecryptPii,
   hashPii,
   normalizeEmail,
   normalizePhone,
@@ -41,7 +41,7 @@ function toAuthUser(user: {
     role: user.role,
     onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
     hasPhone: !!user.phoneHash,
-    phone: user.phoneEnc ? decryptPii(user.phoneEnc) : null,
+    phone: tryDecryptPii(user.phoneEnc),
   };
 }
 
@@ -188,6 +188,10 @@ export async function googleAuthUser(input: GoogleAuthBody, res: Response): Prom
   try {
     googlePayload = await verifyGoogleIdToken(input.idToken);
   } catch {
+    throw new AppError(401, API_ERROR_CODES.UNAUTHORIZED, 'אימות Google נכשל');
+  }
+
+  if (!googlePayload?.sub) {
     throw new AppError(401, API_ERROR_CODES.UNAUTHORIZED, 'אימות Google נכשל');
   }
 
