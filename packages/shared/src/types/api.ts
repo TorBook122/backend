@@ -8,6 +8,7 @@ export type AuthUser = {
   role: string;
   onboardingCompletedAt: string | null;
   hasPhone: boolean;
+  phone: string | null;
 };
 
 export type AuthTokens = {

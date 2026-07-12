@@ -18,6 +18,7 @@ const logoUrlSchema = z
 export const createBusinessSchema = z.object({
   name: z.string().min(2, 'שם העסק קצר מדי').max(100),
   category: z.string().max(50).optional(),
+  address: z.string().min(1, 'כתובת חובה').max(200),
   phone: z.string().min(9, 'מספר טלפון לא תקין'),
 });
 

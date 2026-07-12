@@ -4,6 +4,7 @@ import { verifyPassword } from '../lib/auth/password.js';
 import {
   API_ERROR_CODES,
   AppointmentStatus,
+  decryptPii,
   encryptPii,
   hashPii,
   normalizePhone,
@@ -18,6 +19,7 @@ function toAuthUser(user: {
   role: string;
   onboardingCompletedAt: Date | null;
   phoneHash: string | null;
+  phoneEnc: string | null;
 }): AuthUser {
   return {
     id: user.id,
@@ -25,6 +27,7 @@ function toAuthUser(user: {
     role: user.role,
     onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
     hasPhone: !!user.phoneHash,
+    phone: user.phoneEnc ? decryptPii(user.phoneEnc) : null,
   };
 }
 

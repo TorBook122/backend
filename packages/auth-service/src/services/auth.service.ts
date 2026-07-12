@@ -13,6 +13,7 @@ import {
   API_ERROR_CODES,
   AuthProvider,
   REFRESH_COOKIE_NAME,
+  decryptPii,
   encryptPii,
   hashPii,
   normalizeEmail,
@@ -32,6 +33,7 @@ function toAuthUser(user: {
   role: string;
   onboardingCompletedAt: Date | null;
   phoneHash: string | null;
+  phoneEnc: string | null;
 }): AuthUser {
   return {
     id: user.id,
@@ -39,6 +41,7 @@ function toAuthUser(user: {
     role: user.role,
     onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
     hasPhone: !!user.phoneHash,
+    phone: user.phoneEnc ? decryptPii(user.phoneEnc) : null,
   };
 }
 
@@ -113,6 +116,7 @@ async function issueAuthTokens(
     role: string;
     onboardingCompletedAt: Date | null;
     phoneHash: string | null;
+    phoneEnc: string | null;
   },
   res: Response,
   rememberMe = false,

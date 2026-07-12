@@ -97,6 +97,7 @@ export async function createBusiness(userId: string, input: CreateBusinessBody):
     name: input.name,
     slug,
     category: input.category ?? null,
+    address: input.address.trim(),
     phoneEnc: await sharedClient.encryptPii(await sharedClient.normalizePhone(input.phone)),
   });
 
