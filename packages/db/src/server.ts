@@ -43,7 +43,7 @@ const port = Number(process.env.PORT ?? 3003);
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
     // eslint-disable-next-line no-console
-    console.log(`TorBook db service listening on port ${port}`);
+    console.log(`KvaTor db service listening on port ${port}`);
   });
 }
 

@@ -9,7 +9,7 @@ const port = Number(process.env.PORT ?? 3001);
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
     // eslint-disable-next-line no-console
-    console.log(`TorBook Gateway listening on port ${port}`);
+    console.log(`KvaTor Gateway listening on port ${port}`);
   });
 }
 

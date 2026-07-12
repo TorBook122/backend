@@ -88,7 +88,7 @@ async function main(): Promise<void> {
   await listenOnPort(createGatewayApp(), publicPort);
 
   // eslint-disable-next-line no-console
-  console.log(`TorBook monolith ready — gateway on port ${publicPort}`);
+  console.log(`KvaTor monolith ready — gateway on port ${publicPort}`);
   // eslint-disable-next-line no-console
   console.log(
     [

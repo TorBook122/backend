@@ -1,4 +1,4 @@
-# TorBook Backend — Deployment Guide
+# KvaTor Backend — Deployment Guide
 
 Master reference for local development and Render deployment. Authoritative config lives in [`render.yaml`](../render.yaml) and [`docker-compose.yml`](../docker-compose.yml).
 
@@ -168,7 +168,7 @@ For GitHub Pages deployments, configure this as a GitHub Actions variable or env
 ## Verify deployment
 
 1. **Health check:** `GET https://<torbook-host>/health` returns `{ "success": true, "data": { "status": "ok" } }`
-2. **Startup logs:** `TorBook monolith ready on port …` with no missing-env-var errors
+2. **Startup logs:** `KvaTor monolith ready on port …` with no missing-env-var errors
 3. **Auth smoke test:** Login with wrong credentials returns **401** (not 500)
 
 ---

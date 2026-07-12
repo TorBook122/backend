@@ -179,7 +179,7 @@ if (process.env.NODE_ENV !== 'test') {
 
   app.listen(port, () => {
     // eslint-disable-next-line no-console
-    console.log(`TorBook auth service listening on port ${port}`);
+    console.log(`KvaTor auth service listening on port ${port}`);
   });
 }
 

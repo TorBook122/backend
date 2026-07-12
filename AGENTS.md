@@ -1,4 +1,4 @@
-# TorBook Backend — Agent Guide
+# KvaTor Backend — Agent Guide
 
 ## Overview
 

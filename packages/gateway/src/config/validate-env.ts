@@ -23,7 +23,7 @@ export function validateProductionEnv(): void {
       'Missing required environment variables:',
       missing.join(', '),
       '',
-      'TorBook API depends on private microservices (shared, db, auth).',
+      'KvaTor API depends on private microservices (shared, db, auth).',
       'Deploy the full backend/render.yaml Blueprint, or set these vars manually in Render Dashboard.',
       'Service URLs from Render hostport must include the service address, e.g. http://torbook-shared:3002',
     ].join('\n'),

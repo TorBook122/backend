@@ -298,12 +298,12 @@ function renderLoginPage(error?: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Torbook Admin — Login</title>
+  <title>KvaTor Admin — Login</title>
   <style>${baseStyles()}</style>
 </head>
 <body>
   <div class="card">
-    <h1>Torbook Admin - מנהל מערכת</h1>
+    <h1>KvaTor Admin - מנהל מערכת</h1>
     ${errorBlock}
     <form method="POST" action="/admin/login">
       <label for="username">Username</label>
@@ -360,13 +360,13 @@ function renderDashboardPage(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Torbook Admin — Dashboard</title>
+  <title>KvaTor Admin — Dashboard</title>
   <style>${baseStyles()}</style>
 </head>
 <body>
   <div class="header">
     <div>
-      <h1 style="margin:0">Torbook Admin</h1>
+      <h1 style="margin:0">KvaTor Admin</h1>
       <p class="muted">${businesses.length} business${businesses.length === 1 ? '' : 'es'} · ${users.length} משתמש${users.length === 1 ? '' : 'ים'}</p>
     </div>
     <form method="POST" action="/admin/logout">

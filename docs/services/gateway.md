@@ -2,7 +2,7 @@
 
 ## Role
 
-Public HTTP gateway for the TorBook backend. Handles CORS, CSRF, admin panel, and reverse-proxies to `auth-service` and `booking-service`. Entry point: [`packages/gateway/src/app.ts`](../../packages/gateway/src/app.ts).
+Public HTTP gateway for the KvaTor backend. Handles CORS, CSRF, admin panel, and reverse-proxies to `auth-service` and `booking-service`. Entry point: [`packages/gateway/src/app.ts`](../../packages/gateway/src/app.ts).
 
 In production and Docker dev, gateway runs as a **module inside the unified Node process** (`@torbook/monolith`), not as a separate container. Production image: [`Dockerfile`](../../Dockerfile).
 

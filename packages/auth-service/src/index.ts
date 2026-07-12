@@ -6,7 +6,7 @@ const port = Number(process.env.PORT ?? 3002);
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
     // eslint-disable-next-line no-console
-    console.log(`TorBook Auth Service listening on port ${port}`);
+    console.log(`KvaTor Auth Service listening on port ${port}`);
   });
 }
 
