@@ -4,8 +4,8 @@ import { verifyPassword } from '../lib/auth/password.js';
 import {
   API_ERROR_CODES,
   AppointmentStatus,
-  decryptPii,
   encryptPii,
+  tryDecryptPii,
   hashPii,
   normalizePhone,
   type AuthTokens,
@@ -27,7 +27,7 @@ function toAuthUser(user: {
     role: user.role,
     onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
     hasPhone: !!user.phoneHash,
-    phone: user.phoneEnc ? decryptPii(user.phoneEnc) : null,
+    phone: tryDecryptPii(user.phoneEnc),
   };
 }
 

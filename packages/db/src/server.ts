@@ -38,7 +38,7 @@ internal.use('/audit-logs', auditLogsRoutes);
 
 app.use(internal);
 
-const port = Number(process.env.PORT ?? 3003);
+const port = Number(process.env.PORT ?? 3010);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {

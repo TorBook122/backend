@@ -5,6 +5,7 @@ import {
   hashPii,
   normalizeEmail,
   normalizePhone,
+  tryDecryptPii,
 } from './crypto.js';
 
 beforeEach(() => {
@@ -13,6 +14,11 @@ beforeEach(() => {
 });
 
 describe('crypto', () => {
+  it('tryDecryptPii returns null for invalid ciphertext', () => {
+    expect(tryDecryptPii('enc')).toBeNull();
+    expect(tryDecryptPii(null)).toBeNull();
+  });
+
   it('encrypts and decrypts PII', () => {
     const plaintext = 'michal@example.com';
     const encrypted = encryptPii(plaintext);

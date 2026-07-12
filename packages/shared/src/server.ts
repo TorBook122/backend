@@ -59,7 +59,7 @@ internal.post('/normalize/email', (req, res) => {
 
 app.use(internal);
 
-const port = Number(process.env.PORT ?? 3002);
+const port = Number(process.env.PORT ?? 3011);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
