@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run --passWithNoTests",
-    "dev": "PORT=3010 tsx watch src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "prisma": "prisma"
   },
   "dependencies": {

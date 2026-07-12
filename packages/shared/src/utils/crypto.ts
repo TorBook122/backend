@@ -36,6 +36,17 @@ export function decryptPii(ciphertext: string): string {
   return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
 }
 
+export function tryDecryptPii(ciphertext: string | null | undefined): string | null {
+  if (!ciphertext) return null;
+  try {
+    const data = Buffer.from(ciphertext, 'base64');
+    if (data.length < IV_LENGTH + AUTH_TAG_LENGTH + 1) return null;
+    return decryptPii(ciphertext);
+  } catch {
+    return null;
+  }
+}
+
 export function hashPii(value: string): string {
   return createHmac('sha256', getHashSecret()).update(value.trim().toLowerCase()).digest('hex');
 }

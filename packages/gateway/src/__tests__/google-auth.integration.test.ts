@@ -2,7 +2,7 @@ import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '@torbook/db';
-import { AuthProvider } from '@torbook/shared';
+import { AuthProvider, encryptPii, hashPii, normalizeEmail, normalizePhone } from '@torbook/shared';
 import { verifyAccessToken } from '../../../auth-service/src/lib/auth/jwt.js';
 import {
   clearAuthRedisKeys,
@@ -100,20 +100,27 @@ describe('google auth integration (via gateway)', () => {
 
   it('logs in an existing Google user by googleId', async () => {
     mockGoogleUser();
-    await prisma.user.create({
-      data: {
-        name: 'Existing Google',
-        emailEnc: 'enc',
-        emailHash: 'hash-google-existing',
-        phoneEnc: 'phone-enc',
-        phoneHash: 'phone-hash-google',
-        provider: AuthProvider.GOOGLE,
-        googleId: GOOGLE_SUB,
-        role: 'CUSTOMER',
-      },
-    });
-
     const agent = request.agent(app);
+
+    const signupRes = await withCsrf(agent, (token) =>
+      agent
+        .post('/api/v1/auth/google')
+        .set('X-CSRF-Token', token)
+        .send({ idToken: 'valid-google-token', role: 'CUSTOMER' }),
+    );
+    expect(signupRes.status).toBe(200);
+
+    const accessToken = signupRes.body.data.accessToken as string;
+    const phoneRes = await withCsrf(agent, (token) =>
+      agent
+        .patch('/api/v1/users/me/phone')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .set('X-CSRF-Token', token)
+        .send({ phone: '0521234567' }),
+    );
+    expect(phoneRes.status).toBe(200);
+
+    mockGoogleUser();
     const res = await withCsrf(agent, (token) =>
       agent
         .post('/api/v1/auth/google')
@@ -134,10 +141,10 @@ describe('google auth integration (via gateway)', () => {
     await prisma.user.create({
       data: {
         name: 'Local User',
-        emailEnc: 'enc',
+        emailEnc: encryptPii(normalizeEmail(GOOGLE_EMAIL)),
         emailHash,
-        phoneEnc: 'phone-enc',
-        phoneHash: 'phone-hash-local',
+        phoneEnc: encryptPii(normalizePhone('0529999999')),
+        phoneHash: hashPii(normalizePhone('0529999999')),
         passwordHash: 'hashed',
         provider: AuthProvider.LOCAL,
         role: 'CUSTOMER',
@@ -203,14 +210,16 @@ describe('google auth integration (via gateway)', () => {
   });
 
   it('returns 401 for invalid Google ID token', async () => {
-    verifyGoogleIdToken.mockRejectedValue(new Error('invalid token'));
+    verifyGoogleIdToken.mockImplementation(() =>
+      Promise.reject(new Error('invalid token')),
+    );
     const agent = request.agent(app);
 
     const res = await withCsrf(agent, (token) =>
       agent
         .post('/api/v1/auth/google')
         .set('X-CSRF-Token', token)
-        .send({ idToken: 'bad-token', role: 'CUSTOMER' }),
+        .send({ idToken: 'invalid-google-token', role: 'CUSTOMER' }),
     );
 
     expect(res.status).toBe(401);
