@@ -4,9 +4,14 @@ type NominatimResult = {
 };
 
 const DEFAULT_BASE_URL = 'https://nominatim.openstreetmap.org';
+const DEFAULT_USER_AGENT = 'KvaTor/1.0 (slotinsystem@gmail.com)';
 
 function getNominatimBaseUrl(): string {
   return process.env.NOMINATIM_BASE_URL?.trim() || DEFAULT_BASE_URL;
+}
+
+function getNominatimUserAgent(): string {
+  return process.env.NOMINATIM_USER_AGENT?.trim() || DEFAULT_USER_AGENT;
 }
 
 function buildGeocodeQuery(address: string): string {
@@ -27,13 +32,10 @@ export async function geocodeAddress(
   url.searchParams.set('limit', '1');
   url.searchParams.set('countrycodes', 'il');
 
-  const userAgent = process.env.NOMINATIM_USER_AGENT?.trim();
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (!userAgent) {
-    console.warn('[nominatim] NOMINATIM_USER_AGENT is not set — geocoding may fail');
-  } else {
-    headers['User-Agent'] = userAgent;
-  }
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'User-Agent': getNominatimUserAgent(),
+  };
 
   const response = await fetch(url.toString(), { headers });
   if (!response.ok) {
