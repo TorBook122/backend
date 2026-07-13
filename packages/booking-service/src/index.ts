@@ -1,7 +1,7 @@
 import { createApp } from './app.js';
 
 const app = createApp();
-const port = Number(process.env.PORT ?? 3003);
+const port = Number(process.env.BOOKING_SERVICE_PORT ?? 3003);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {

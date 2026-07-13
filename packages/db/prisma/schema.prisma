@@ -63,6 +63,8 @@ model Business {
   logoUrl                 String?
   notes                   String?
   address                 String?
+  latitude                Float?
+  longitude               Float?
   phoneEnc                String
   cancellationWindowHours Int       @default(24)
   deletedAt               DateTime?

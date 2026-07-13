@@ -74,6 +74,65 @@ router.get('/rankings', async (req, res) => {
   res.json({ success: true, data });
 });
 
+router.get('/map', async (_req, res) => {
+  const businesses = await prisma.business.findMany({
+    where: {
+      deletedAt: null,
+      owner: { onboardingCompletedAt: { not: null } },
+      address: { not: null },
+      latitude: { not: null },
+      longitude: { not: null },
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      category: true,
+      address: true,
+      logoUrl: true,
+      latitude: true,
+      longitude: true,
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  res.json({
+    success: true,
+    data: businesses.map((business) => ({
+      id: business.id,
+      name: business.name,
+      slug: business.slug,
+      category: business.category,
+      address: business.address as string,
+      logoUrl: business.logoUrl,
+      latitude: business.latitude as number,
+      longitude: business.longitude as number,
+    })),
+  });
+});
+
+router.get('/geocode-pending', async (_req, res) => {
+  const businesses = await prisma.business.findMany({
+    where: {
+      deletedAt: null,
+      owner: { onboardingCompletedAt: { not: null } },
+      address: { not: null },
+      OR: [{ latitude: null }, { longitude: null }],
+    },
+    select: { id: true, address: true },
+    orderBy: { updatedAt: 'asc' },
+    take: 10,
+  });
+
+  res.json({
+    success: true,
+    data: businesses.map((business) => ({
+      id: business.id,
+      address: business.address as string,
+    })),
+  });
+});
+
 function parseTime(t: string): number {
   const [h, m] = t.split(':').map(Number);
   return h * 60 + m;

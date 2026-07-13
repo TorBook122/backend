@@ -68,6 +68,17 @@ export type BusinessListItem = {
   category: string | null;
 };
 
+export type BusinessMapLocationDto = {
+  id: string;
+  name: string;
+  slug: string;
+  category: string | null;
+  address: string;
+  logoUrl: string | null;
+  latitude: number;
+  longitude: number;
+};
+
 export type FavoriteDto = {
   id: string;
   businessId: string;
