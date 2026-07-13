@@ -8,6 +8,7 @@ import {
   deleteService,
   getBusinessBySlug,
   getOwnerBusiness,
+  listMapLocations,
   listOwnerServices,
   listPublicBusinesses,
   updateAvailability,
@@ -42,6 +43,11 @@ export async function create(req: Request, res: Response) {
 export async function list(req: Request, res: Response) {
   const q = typeof req.query.q === 'string' ? req.query.q : undefined;
   const businesses = await listPublicBusinesses(q);
+  res.json({ success: true, data: businesses });
+}
+
+export async function mapLocations(_req: Request, res: Response) {
+  const businesses = await listMapLocations();
   res.json({ success: true, data: businesses });
 }
 

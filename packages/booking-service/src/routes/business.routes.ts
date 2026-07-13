@@ -17,6 +17,7 @@ router.post(
 );
 
 router.get('/', asyncHandler(businessController.list));
+router.get('/map', asyncHandler(businessController.mapLocations));
 router.get('/rankings', asyncHandler(engagementController.rankings));
 router.post(
   '/',

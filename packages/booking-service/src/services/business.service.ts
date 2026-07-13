@@ -1,4 +1,4 @@
-import { API_ERROR_CODES, UserRole, type AvailabilityDay, type BreakBlockDto, type BusinessListItem, type BusinessOwner, type BusinessPublic, type ServiceDto } from '@torbook/shared';
+import { API_ERROR_CODES, UserRole, type AvailabilityDay, type BreakBlockDto, type BusinessListItem, type BusinessMapLocationDto, type BusinessOwner, type BusinessPublic, type ServiceDto } from '@torbook/shared';
 import { dbClient, type DbBusiness } from '../clients/db.client.js';
 import { sharedClient } from '../clients/shared.client.js';
 import { AppError } from '../utils/app-error.js';
@@ -10,6 +10,7 @@ import type {
   UpdateBusinessBody,
   UpdateServiceBody,
 } from '../validators/business.validator.js';
+import { resolveBusinessCoordinates } from './nominatim.service.js';
 
 function slugify(name: string): string {
   const base = name
@@ -60,6 +61,37 @@ async function assertOwner(businessId: string, userId: string) {
   return business;
 }
 
+function needsGeocoding(business: DbBusiness): boolean {
+  const address = business.address?.trim();
+  return Boolean(address && (business.latitude == null || business.longitude == null));
+}
+
+async function resolveCoordinatesForSave(
+  business: DbBusiness,
+  input: UpdateBusinessBody,
+): Promise<{ latitude: number | null; longitude: number | null } | undefined> {
+  if (input.address !== undefined) {
+    return resolveBusinessCoordinates(input.address ?? '');
+  }
+  if (needsGeocoding(business)) {
+    return resolveBusinessCoordinates(business.address!.trim());
+  }
+  return undefined;
+}
+
+async function ensureBusinessCoordinates(business: DbBusiness): Promise<DbBusiness> {
+  if (!needsGeocoding(business)) return business;
+
+  const coordinates = await resolveBusinessCoordinates(business.address!.trim());
+  if (!coordinates || coordinates.latitude == null) return business;
+
+  return dbClient.businesses.update(business.id, coordinates);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function toPublic(business: DbBusiness): BusinessPublic {
   return {
     id: business.id,
@@ -92,12 +124,14 @@ export async function createBusiness(userId: string, input: CreateBusinessBody):
   }
 
   const slug = await uniqueSlug(input.name);
+  const coordinates = await resolveBusinessCoordinates(input.address.trim());
   const business = await dbClient.businesses.create({
     ownerId: userId,
     name: input.name,
     slug,
     category: input.category ?? null,
     address: input.address.trim(),
+    ...(coordinates ?? {}),
     phoneEnc: await sharedClient.encryptPii(await sharedClient.normalizePhone(input.phone)),
   });
 
@@ -113,12 +147,14 @@ export async function updateBusiness(
   input: UpdateBusinessBody,
 ): Promise<BusinessOwner> {
   const business = await assertOwner(businessId, userId);
+  const coordinates = await resolveCoordinatesForSave(business, input);
 
   const updated = await dbClient.businesses.update(business.id, {
     ...(input.name !== undefined ? { name: input.name } : {}),
     ...(input.category !== undefined ? { category: input.category } : {}),
     ...(input.notes !== undefined ? { notes: input.notes } : {}),
     ...(input.address !== undefined ? { address: input.address } : {}),
+    ...(coordinates ?? {}),
     ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
     ...(input.phone !== undefined
       ? { phoneEnc: await sharedClient.encryptPii(await sharedClient.normalizePhone(input.phone)) }
@@ -138,6 +174,19 @@ export async function listPublicBusinesses(query?: string): Promise<BusinessList
   return dbClient.businesses.listPublic(query);
 }
 
+export async function listMapLocations(): Promise<BusinessMapLocationDto[]> {
+  const pending = await dbClient.businesses.listGeocodePending();
+  for (const business of pending) {
+    const coordinates = await resolveBusinessCoordinates(business.address);
+    if (coordinates?.latitude != null) {
+      await dbClient.businesses.update(business.id, coordinates);
+    }
+    await sleep(1100);
+  }
+
+  return dbClient.businesses.listMapLocations();
+}
+
 export async function getBusinessBySlug(slug: string): Promise<BusinessPublic> {
   try {
     const business = await dbClient.businesses.findBySlug(slug, 'full');
@@ -150,9 +199,10 @@ export async function getBusinessBySlug(slug: string): Promise<BusinessPublic> {
 export async function getOwnerBusiness(userId: string): Promise<BusinessOwner | null> {
   const business = await dbClient.businesses.findByOwnerId(userId);
   if (!business) return null;
+  const resolved = await ensureBusinessCoordinates(business);
   return {
-    ...toPublic({ ...business, services: (business.services ?? []).filter((s) => s.isVisible) }),
-    phone: await sharedClient.decryptPii(business.phoneEnc),
+    ...toPublic({ ...resolved, services: (resolved.services ?? []).filter((s) => s.isVisible) }),
+    phone: await sharedClient.decryptPii(resolved.phoneEnc),
   };
 }
 

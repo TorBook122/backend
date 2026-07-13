@@ -90,6 +90,8 @@ export type DbBusiness = {
   logoUrl: string | null;
   notes: string | null;
   address: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   phoneEnc: string;
   cancellationWindowHours: number;
   deletedAt: Date | string | null;
@@ -143,6 +145,19 @@ export const dbClient = {
       dbGet<Array<{ id: string; name: string; slug: string; category: string | null }>>(
         query ? `/businesses?q=${encodeURIComponent(query)}` : '/businesses',
       ),
+    listMapLocations: () =>
+      dbGet<Array<{
+        id: string;
+        name: string;
+        slug: string;
+        category: string | null;
+        address: string;
+        logoUrl: string | null;
+        latitude: number;
+        longitude: number;
+      }>>('/businesses/map'),
+    listGeocodePending: () =>
+      dbGet<Array<{ id: string; address: string }>>('/businesses/geocode-pending'),
     listAdmin: () => dbGet<Array<{ id: string; name: string; slug: string; category: string | null; createdAt: string; deletedAt: string | null }>>('/businesses?admin=true'),
     create: (data: Record<string, unknown>) => dbPost<DbBusiness>('/businesses', data),
     update: (id: string, data: Record<string, unknown>) =>
