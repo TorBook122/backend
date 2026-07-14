@@ -16,3 +16,9 @@ export enum AppointmentStatus {
   COMPLETED = 'COMPLETED',
   PENDING_OWNER_DECISION = 'PENDING_OWNER_DECISION',
 }
+
+export enum CommentSentiment {
+  POSITIVE = 'POSITIVE',
+  NEGATIVE = 'NEGATIVE',
+  NEUTRAL = 'NEUTRAL',
+}

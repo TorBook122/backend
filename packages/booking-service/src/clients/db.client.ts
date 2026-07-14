@@ -6,6 +6,7 @@ import {
   internalPut,
   ServiceRequestError,
 } from '@torbook/shared/server/http-client';
+import type { CommentSentiment } from '@torbook/shared';
 import { AppError } from '../utils/app-error.js';
 
 function getBaseUrl(): string {
@@ -184,6 +185,9 @@ export const dbClient = {
           category: string | null;
           likeCount: number;
           commentCount: number;
+          positiveCount: number;
+          negativeCount: number;
+          neutralCount: number;
           score: number;
         }>;
       }>>(`/businesses/rankings?categories=${encodeURIComponent(categories.join(','))}`),
@@ -210,6 +214,7 @@ export const dbClient = {
       return dbGet<Array<{
         id: string;
         text: string;
+        sentiment: CommentSentiment;
         authorName: string;
         appointmentId: string;
         serviceName: string;
@@ -221,6 +226,10 @@ export const dbClient = {
     },
     count: (businessId: string) =>
       dbGet<{ count: number }>(`/comments/business/${encodeURIComponent(businessId)}/count`),
+    sentimentCounts: (businessId: string) =>
+      dbGet<{ positive: number; negative: number; neutral: number; total: number }>(
+        `/comments/business/${encodeURIComponent(businessId)}/sentiment-counts`,
+      ),
     listCommentable: (userId: string, businessId: string) =>
       dbGet<Array<{
         id: string;
@@ -230,10 +239,11 @@ export const dbClient = {
       }>>(
         `/comments/commentable/user/${encodeURIComponent(userId)}/business/${encodeURIComponent(businessId)}`,
       ),
-    create: (userId: string, businessId: string, appointmentId: string, text: string) =>
+    create: (userId: string, businessId: string, appointmentId: string, text: string, sentiment: CommentSentiment) =>
       dbPost<{
         id: string;
         text: string;
+        sentiment: CommentSentiment;
         authorName: string;
         appointmentId: string;
         serviceName: string;
@@ -241,11 +251,12 @@ export const dbClient = {
         createdAt: string;
         updatedAt: string;
         isMine?: boolean;
-      }>('/comments/create', { userId, businessId, appointmentId, text }),
-    update: (commentId: string, userId: string, text: string) =>
+      }>('/comments/create', { userId, businessId, appointmentId, text, sentiment }),
+    update: (commentId: string, userId: string, text: string, sentiment: CommentSentiment) =>
       dbPut<{
         id: string;
         text: string;
+        sentiment: CommentSentiment;
         authorName: string;
         appointmentId: string;
         serviceName: string;
@@ -253,7 +264,7 @@ export const dbClient = {
         createdAt: string;
         updatedAt: string;
         isMine?: boolean;
-      }>(`/comments/${encodeURIComponent(commentId)}`, { userId, text }),
+      }>(`/comments/${encodeURIComponent(commentId)}`, { userId, text, sentiment }),
     remove: (commentId: string, userId: string) =>
       dbDelete<{ deleted: boolean }>(
         `/comments/${encodeURIComponent(commentId)}/user/${encodeURIComponent(userId)}`,
