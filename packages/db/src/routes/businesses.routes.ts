@@ -11,6 +11,9 @@ type RankedRow = {
   category: string | null;
   like_count: number;
   comment_count: number;
+  positive_count: number;
+  negative_count: number;
+  neutral_count: number;
   score: number;
 };
 
@@ -36,7 +39,14 @@ router.get('/rankings', async (req, res) => {
           b.category,
           COALESCE(l.like_count, 0)::int AS like_count,
           COALESCE(c.comment_count, 0)::int AS comment_count,
-          (COALESCE(l.like_count, 0) + COALESCE(c.comment_count, 0))::int AS score
+          COALESCE(c.positive_count, 0)::int AS positive_count,
+          COALESCE(c.negative_count, 0)::int AS negative_count,
+          COALESCE(c.neutral_count, 0)::int AS neutral_count,
+          (
+            COALESCE(l.like_count, 0)
+            + COALESCE(c.positive_count, 0) * 2
+            + COALESCE(c.negative_count, 0) * (-1)
+          )::int AS score
         FROM "Business" b
         INNER JOIN "User" u ON b."ownerId" = u.id
         LEFT JOIN (
@@ -45,7 +55,12 @@ router.get('/rankings', async (req, res) => {
           GROUP BY "businessId"
         ) l ON l."businessId" = b.id
         LEFT JOIN (
-          SELECT "businessId", COUNT(*)::int AS comment_count
+          SELECT
+            "businessId",
+            COUNT(*) FILTER (WHERE sentiment = 'POSITIVE')::int AS positive_count,
+            COUNT(*) FILTER (WHERE sentiment = 'NEGATIVE')::int AS negative_count,
+            COUNT(*) FILTER (WHERE sentiment = 'NEUTRAL')::int AS neutral_count,
+            COUNT(*)::int AS comment_count
           FROM "BusinessComment"
           GROUP BY "businessId"
         ) c ON c."businessId" = b.id
@@ -65,6 +80,9 @@ router.get('/rankings', async (req, res) => {
           category: row.category,
           likeCount: row.like_count,
           commentCount: row.comment_count,
+          positiveCount: row.positive_count,
+          negativeCount: row.negative_count,
+          neutralCount: row.neutral_count,
           score: row.score,
         })),
       };

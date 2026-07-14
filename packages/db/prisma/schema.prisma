@@ -26,6 +26,12 @@ enum AppointmentStatus {
   PENDING_OWNER_DECISION
 }
 
+enum CommentSentiment {
+  POSITIVE
+  NEGATIVE
+  NEUTRAL
+}
+
 model User {
   id                    String    @id @default(cuid())
   name                  String
@@ -190,6 +196,7 @@ model BusinessComment {
   appointmentId String      @unique
   appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   text          String
+  sentiment     CommentSentiment @default(NEUTRAL)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 

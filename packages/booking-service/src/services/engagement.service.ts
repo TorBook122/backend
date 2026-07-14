@@ -1,6 +1,7 @@
 import {
   API_ERROR_CODES,
   BUSINESS_CATEGORIES,
+  analyzeCommentSentiment,
   type BusinessCommentDto,
   type BusinessEngagementDto,
   type CategoryRankingsDto,
@@ -29,15 +30,19 @@ export async function getRankings(): Promise<CategoryRankingsDto[]> {
 export async function getEngagement(slug: string, userId?: string): Promise<BusinessEngagementDto> {
   const business = await getBusinessBySlugOrThrow(slug);
 
-  const [{ count: likeCount }, { count: commentCount }] = await Promise.all([
+  const [{ count: likeCount }, { count: commentCount }, sentimentCounts] = await Promise.all([
     dbClient.likes.count(business.id),
     dbClient.comments.count(business.id),
+    dbClient.comments.sentimentCounts(business.id),
   ]);
 
   const engagement: BusinessEngagementDto = {
     likeCount,
     commentCount,
-    score: likeCount + commentCount,
+    positiveCount: sentimentCounts.positive,
+    negativeCount: sentimentCounts.negative,
+    neutralCount: sentimentCounts.neutral,
+    score: likeCount + sentimentCounts.positive * 2 + sentimentCounts.negative * -1,
   };
 
   if (!userId) {
@@ -91,7 +96,8 @@ export async function createComment(
   assertNotOwnBusiness(business, userId);
 
   try {
-    return await dbClient.comments.create(userId, business.id, appointmentId, text);
+    const sentiment = analyzeCommentSentiment(text);
+    return await dbClient.comments.create(userId, business.id, appointmentId, text, sentiment);
   } catch (err) {
     if (err instanceof AppError && err.statusCode === 403) {
       throw new AppError(
@@ -113,7 +119,8 @@ export async function updateComment(
   const business = await getBusinessBySlugOrThrow(slug);
   assertNotOwnBusiness(business, userId);
 
-  return dbClient.comments.update(commentId, userId, text);
+  const sentiment = analyzeCommentSentiment(text);
+  return dbClient.comments.update(commentId, userId, text, sentiment);
 }
 
 export async function deleteComment(slug: string, userId: string, commentId: string): Promise<void> {

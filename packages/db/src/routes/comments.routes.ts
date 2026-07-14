@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { CommentSentiment } from '@torbook/shared';
 import { prisma } from '../client.js';
 
 const router = Router();
@@ -9,6 +10,7 @@ function mapComment(
   comment: {
     id: string;
     text: string;
+    sentiment: string;
     createdAt: Date;
     updatedAt: Date;
     userId: string;
@@ -21,6 +23,7 @@ function mapComment(
   return {
     id: comment.id,
     text: comment.text,
+    sentiment: comment.sentiment as CommentSentiment,
     authorName: comment.user.name,
     appointmentId: comment.appointmentId,
     serviceName: comment.appointment.service.name,
@@ -41,6 +44,17 @@ function commentInclude() {
       },
     },
   } as const;
+}
+
+function parseSentiment(value: unknown): CommentSentiment | null {
+  if (
+    value === CommentSentiment.POSITIVE
+    || value === CommentSentiment.NEGATIVE
+    || value === CommentSentiment.NEUTRAL
+  ) {
+    return value;
+  }
+  return null;
 }
 
 async function findCommentableAppointment(
@@ -83,6 +97,28 @@ router.get('/business/:businessId/count', async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
+router.get('/business/:businessId/sentiment-counts', async (req, res) => {
+  const counts = await prisma.businessComment.groupBy({
+    by: ['sentiment'],
+    where: { businessId: req.params.businessId },
+    _count: { sentiment: true },
+  });
+
+  const positive = counts.find((row) => row.sentiment === CommentSentiment.POSITIVE)?._count.sentiment ?? 0;
+  const negative = counts.find((row) => row.sentiment === CommentSentiment.NEGATIVE)?._count.sentiment ?? 0;
+  const neutral = counts.find((row) => row.sentiment === CommentSentiment.NEUTRAL)?._count.sentiment ?? 0;
+
+  res.json({
+    success: true,
+    data: {
+      positive,
+      negative,
+      neutral,
+      total: positive + negative + neutral,
+    },
+  });
+});
+
 router.get('/commentable/user/:userId/business/:businessId', async (req, res) => {
   const appointments = await prisma.appointment.findMany({
     where: {
@@ -108,17 +144,27 @@ router.get('/commentable/user/:userId/business/:businessId', async (req, res) =>
 });
 
 router.post('/create', async (req, res) => {
-  const { userId, businessId, appointmentId, text } = req.body as {
+  const { userId, businessId, appointmentId, text, sentiment: sentimentInput } = req.body as {
     userId?: string;
     businessId?: string;
     appointmentId?: string;
     text?: string;
+    sentiment?: unknown;
   };
 
   if (!userId || !businessId || !appointmentId || typeof text !== 'string') {
     res.status(400).json({
       success: false,
       error: 'userId, businessId, appointmentId, and text are required',
+    });
+    return;
+  }
+
+  const sentiment = parseSentiment(sentimentInput);
+  if (!sentiment) {
+    res.status(400).json({
+      success: false,
+      error: 'sentiment must be POSITIVE, NEGATIVE, or NEUTRAL',
     });
     return;
   }
@@ -134,7 +180,7 @@ router.post('/create', async (req, res) => {
   }
 
   const comment = await prisma.businessComment.create({
-    data: { userId, businessId, appointmentId, text },
+    data: { userId, businessId, appointmentId, text, sentiment },
     include: commentInclude(),
   });
 
@@ -145,10 +191,23 @@ router.post('/create', async (req, res) => {
 });
 
 router.put('/:commentId', async (req, res) => {
-  const { userId, text } = req.body as { userId?: string; text?: string };
+  const { userId, text, sentiment: sentimentInput } = req.body as {
+    userId?: string;
+    text?: string;
+    sentiment?: unknown;
+  };
 
   if (!userId || typeof text !== 'string') {
     res.status(400).json({ success: false, error: 'userId and text are required' });
+    return;
+  }
+
+  const sentiment = parseSentiment(sentimentInput);
+  if (!sentiment) {
+    res.status(400).json({
+      success: false,
+      error: 'sentiment must be POSITIVE, NEGATIVE, or NEUTRAL',
+    });
     return;
   }
 
@@ -163,7 +222,7 @@ router.put('/:commentId', async (req, res) => {
 
   const comment = await prisma.businessComment.update({
     where: { id: req.params.commentId },
-    data: { text },
+    data: { text, sentiment },
     include: commentInclude(),
   });
 

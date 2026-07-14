@@ -1,3 +1,5 @@
+import type { CommentSentiment } from './enums.js';
+
 export type AvailabilityDay = {
   dayOfWeek: number;
   isActive: boolean;
@@ -96,6 +98,7 @@ export type BusinessCommentDto = {
   visitDate: string;
   createdAt: string;
   updatedAt: string;
+  sentiment: CommentSentiment;
   isMine?: boolean;
 };
 
@@ -110,6 +113,9 @@ export type BusinessEngagementDto = {
   likeCount: number;
   commentCount: number;
   score: number;
+  positiveCount?: number;
+  negativeCount?: number;
+  neutralCount?: number;
   likedByMe?: boolean;
   commentableAppointments?: CommentableAppointmentDto[];
 };
@@ -118,6 +124,9 @@ export type RankedBusinessDto = BusinessListItem & {
   likeCount: number;
   commentCount: number;
   score: number;
+  positiveCount?: number;
+  negativeCount?: number;
+  neutralCount?: number;
 };
 
 export type CategoryRankingsDto = {
