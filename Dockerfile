@@ -30,4 +30,4 @@ WORKDIR /app
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "pnpm --filter @torbook/db exec prisma migrate deploy && node packages/monolith/dist/index.js"]
+CMD ["sh", "-c", "pnpm --filter @torbook/db exec tsx scripts/repair-migrations.ts && pnpm --filter @torbook/db exec prisma migrate deploy && node packages/monolith/dist/index.js"]

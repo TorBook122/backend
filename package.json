@@ -28,7 +28,7 @@
     "docker:ps": "docker compose ps",
     "e2e:stack": "dotenv -e .env -- tsx scripts/e2e-stack.ts",
     "start": "pnpm --filter @torbook/monolith start",
-    "render:build": "pnpm install --frozen-lockfile && pnpm db:generate && pnpm --filter @torbook/db exec prisma migrate deploy && pnpm -r run build"
+    "render:build": "pnpm install --frozen-lockfile && pnpm db:generate && pnpm --filter @torbook/db exec tsx scripts/repair-migrations.ts && pnpm --filter @torbook/db exec prisma migrate deploy && pnpm -r run build"
   },
   "devDependencies": {
     "dotenv-cli": "^8.0.0",
