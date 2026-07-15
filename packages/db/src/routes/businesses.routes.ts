@@ -246,7 +246,16 @@ router.get('/', async (req, res) => {
           }
         : {}),
     },
-    select: { id: true, name: true, slug: true, category: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      category: true,
+      instagramUrl: true,
+      whatsappUrl: true,
+      facebookUrl: true,
+      tiktokUrl: true,
+    },
     orderBy: { name: 'asc' },
   });
   res.json({ success: true, data: businesses });

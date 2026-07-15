@@ -15,11 +15,29 @@ const logoUrlSchema = z
     { message: 'כתובת לוגו לא תקינה' },
   );
 
+const socialUrlSchema = z
+  .string()
+  .max(300)
+  .nullable()
+  .optional()
+  .refine(
+    (val) =>
+      val == null ||
+      val === '' ||
+      /^https?:\/\/.+/i.test(val),
+    { message: 'קישור לא תקין — יש להזין כתובת שמתחילה ב-http:// או https://' },
+  )
+  .transform((val) => (val === '' ? null : val));
+
 export const createBusinessSchema = z.object({
   name: z.string().min(2, 'שם העסק קצר מדי').max(100),
   category: z.string().max(50).optional(),
   address: z.string().min(1, 'כתובת חובה').max(200),
   phone: z.string().min(9, 'מספר טלפון לא תקין'),
+  instagramUrl: socialUrlSchema,
+  whatsappUrl: socialUrlSchema,
+  facebookUrl: socialUrlSchema,
+  tiktokUrl: socialUrlSchema,
 });
 
 export const updateBusinessSchema = z.object({
@@ -27,6 +45,10 @@ export const updateBusinessSchema = z.object({
   category: z.string().max(50).optional(),
   notes: z.string().max(500).nullable().optional(),
   address: z.string().max(200).nullable().optional(),
+  instagramUrl: socialUrlSchema,
+  whatsappUrl: socialUrlSchema,
+  facebookUrl: socialUrlSchema,
+  tiktokUrl: socialUrlSchema,
   logoUrl: logoUrlSchema.optional(),
   phone: z.string().min(9).optional(),
   cancellationWindowHours: z.union([

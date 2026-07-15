@@ -71,6 +71,10 @@ model Business {
   address                 String?
   latitude                Float?
   longitude               Float?
+  instagramUrl            String?
+  whatsappUrl             String?
+  facebookUrl             String?
+  tiktokUrl               String?
   phoneEnc                String
   cancellationWindowHours Int       @default(24)
   deletedAt               DateTime?

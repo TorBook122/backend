@@ -138,7 +138,16 @@ export const dbClient = {
     findById: (id: string, include?: 'full') =>
       dbGet<DbBusiness>(`/businesses/${encodeURIComponent(id)}${include ? '?include=full' : ''}`),
     listPublic: (query?: string) =>
-      dbGet<Array<{ id: string; name: string; slug: string; category: string | null }>>(
+      dbGet<Array<{
+        id: string;
+        name: string;
+        slug: string;
+        category: string | null;
+        instagramUrl: string | null;
+        whatsappUrl: string | null;
+        facebookUrl: string | null;
+        tiktokUrl: string | null;
+      }>>(
         query ? `/businesses?q=${encodeURIComponent(query)}` : '/businesses',
       ),
     listAdmin: () => dbGet<Array<{ id: string; name: string; slug: string; category: string | null; createdAt: string; deletedAt: string | null }>>('/businesses?admin=true'),

@@ -101,6 +101,10 @@ function toPublic(business: DbBusiness): BusinessPublic {
     logoUrl: business.logoUrl,
     notes: business.notes ?? null,
     address: business.address ?? null,
+    instagramUrl: business.instagramUrl ?? null,
+    whatsappUrl: business.whatsappUrl ?? null,
+    facebookUrl: business.facebookUrl ?? null,
+    tiktokUrl: business.tiktokUrl ?? null,
     cancellationWindowHours: business.cancellationWindowHours,
     availability: (business.availability ?? []).map((a) => ({
       dayOfWeek: a.dayOfWeek,
@@ -132,6 +136,10 @@ export async function createBusiness(userId: string, input: CreateBusinessBody):
     category: input.category ?? null,
     address: input.address.trim(),
     ...(coordinates ?? {}),
+    ...(input.instagramUrl !== undefined ? { instagramUrl: input.instagramUrl } : {}),
+    ...(input.whatsappUrl !== undefined ? { whatsappUrl: input.whatsappUrl } : {}),
+    ...(input.facebookUrl !== undefined ? { facebookUrl: input.facebookUrl } : {}),
+    ...(input.tiktokUrl !== undefined ? { tiktokUrl: input.tiktokUrl } : {}),
     phoneEnc: await sharedClient.encryptPii(await sharedClient.normalizePhone(input.phone)),
   });
 
@@ -154,6 +162,10 @@ export async function updateBusiness(
     ...(input.category !== undefined ? { category: input.category } : {}),
     ...(input.notes !== undefined ? { notes: input.notes } : {}),
     ...(input.address !== undefined ? { address: input.address } : {}),
+    ...(input.instagramUrl !== undefined ? { instagramUrl: input.instagramUrl } : {}),
+    ...(input.whatsappUrl !== undefined ? { whatsappUrl: input.whatsappUrl } : {}),
+    ...(input.facebookUrl !== undefined ? { facebookUrl: input.facebookUrl } : {}),
+    ...(input.tiktokUrl !== undefined ? { tiktokUrl: input.tiktokUrl } : {}),
     ...(coordinates ?? {}),
     ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
     ...(input.phone !== undefined
