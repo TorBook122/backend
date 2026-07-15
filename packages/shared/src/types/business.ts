@@ -29,6 +29,10 @@ export type BusinessPublic = {
   logoUrl: string | null;
   notes: string | null;
   address: string | null;
+  instagramUrl: string | null;
+  whatsappUrl: string | null;
+  facebookUrl: string | null;
+  tiktokUrl: string | null;
   cancellationWindowHours: number;
   availability: AvailabilityDay[];
   breaks: BreakBlockDto[];
@@ -68,6 +72,10 @@ export type BusinessListItem = {
   name: string;
   slug: string;
   category: string | null;
+  instagramUrl: string | null;
+  whatsappUrl: string | null;
+  facebookUrl: string | null;
+  tiktokUrl: string | null;
 };
 
 export type BusinessMapLocationDto = {
@@ -120,7 +128,7 @@ export type BusinessEngagementDto = {
   commentableAppointments?: CommentableAppointmentDto[];
 };
 
-export type RankedBusinessDto = BusinessListItem & {
+export type RankedBusinessDto = Pick<BusinessListItem, 'id' | 'name' | 'slug' | 'category'> & {
   likeCount: number;
   commentCount: number;
   score: number;
