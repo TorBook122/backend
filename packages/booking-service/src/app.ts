@@ -9,7 +9,7 @@ import { sanitize } from './middleware/sanitize.js';
 export function createApp(): Express {
   const app = express();
 
-  app.use(express.json());
+  app.use(express.json({ limit: '512kb' }));
   app.use(sanitize);
 
   app.get('/health', (_req, res) => {

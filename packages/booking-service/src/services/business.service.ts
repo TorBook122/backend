@@ -61,6 +61,12 @@ async function assertOwner(businessId: string, userId: string) {
   return business;
 }
 
+function assertPro(business: DbBusiness) {
+  if (!business.isPro) {
+    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'פיצ\'ר זמין למנוי Plus בלבד');
+  }
+}
+
 function needsGeocoding(business: DbBusiness): boolean {
   const address = business.address?.trim();
   return Boolean(address && (business.latitude == null || business.longitude == null));
@@ -99,6 +105,7 @@ function toPublic(business: DbBusiness): BusinessPublic {
     slug: business.slug,
     category: business.category,
     logoUrl: business.logoUrl,
+    bannerUrl: business.isPro ? business.bannerUrl : null,
     notes: business.notes ?? null,
     address: business.address ?? null,
     instagramUrl: business.instagramUrl ?? null,
@@ -146,6 +153,7 @@ export async function createBusiness(userId: string, input: CreateBusinessBody):
   return {
     ...toPublic(business),
     phone: input.phone,
+    isPro: business.isPro,
   };
 }
 
@@ -155,6 +163,9 @@ export async function updateBusiness(
   input: UpdateBusinessBody,
 ): Promise<BusinessOwner> {
   const business = await assertOwner(businessId, userId);
+  if (input.bannerUrl !== undefined) {
+    assertPro(business);
+  }
   const coordinates = await resolveCoordinatesForSave(business, input);
 
   const updated = await dbClient.businesses.update(business.id, {
@@ -168,6 +179,7 @@ export async function updateBusiness(
     ...(input.tiktokUrl !== undefined ? { tiktokUrl: input.tiktokUrl } : {}),
     ...(coordinates ?? {}),
     ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
+    ...(input.bannerUrl !== undefined ? { bannerUrl: input.bannerUrl } : {}),
     ...(input.phone !== undefined
       ? { phoneEnc: await sharedClient.encryptPii(await sharedClient.normalizePhone(input.phone)) }
       : {}),
@@ -179,6 +191,7 @@ export async function updateBusiness(
   return {
     ...toPublic(updated),
     phone: input.phone ?? (await sharedClient.decryptPii(updated.phoneEnc)),
+    isPro: updated.isPro,
   };
 }
 
@@ -215,6 +228,7 @@ export async function getOwnerBusiness(userId: string): Promise<BusinessOwner | 
   return {
     ...toPublic({ ...resolved, services: (resolved.services ?? []).filter((s) => s.isVisible) }),
     phone: await sharedClient.decryptPii(resolved.phoneEnc),
+    isPro: resolved.isPro,
   };
 }
 

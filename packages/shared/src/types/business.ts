@@ -27,6 +27,7 @@ export type BusinessPublic = {
   slug: string;
   category: string | null;
   logoUrl: string | null;
+  bannerUrl: string | null;
   notes: string | null;
   address: string | null;
   instagramUrl: string | null;
@@ -41,6 +42,7 @@ export type BusinessPublic = {
 
 export type BusinessOwner = BusinessPublic & {
   phone: string;
+  isPro: boolean;
 };
 
 export type AppointmentDto = {

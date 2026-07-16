@@ -89,6 +89,7 @@ export type DbBusiness = {
   slug: string;
   category: string | null;
   logoUrl: string | null;
+  bannerUrl: string | null;
   notes: string | null;
   address: string | null;
   latitude?: number | null;
@@ -99,6 +100,7 @@ export type DbBusiness = {
   tiktokUrl: string | null;
   phoneEnc: string;
   cancellationWindowHours: number;
+  isPro: boolean;
   deletedAt: Date | string | null;
   availability?: Array<{ dayOfWeek: number; isActive: boolean; startTime: string; endTime: string }>;
   breakBlocks?: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
