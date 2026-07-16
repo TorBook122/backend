@@ -12,7 +12,7 @@ import fcmTokensRoutes from './routes/fcm-tokens.routes.js';
 import auditLogsRoutes from './routes/audit-logs.routes.js';
 
 const app: Express = express();
-app.use(express.json());
+app.use(express.json({ limit: '512kb' }));
 
 app.get('/health', async (_req, res) => {
   try {

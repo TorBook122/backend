@@ -2,18 +2,23 @@ import { z } from 'zod';
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+const imageUrlRefine = (val: string | null) =>
+  val === null ||
+  val.startsWith('http://') ||
+  val.startsWith('https://') ||
+  /^data:image\/(jpeg|jpg|png|webp);base64,/.test(val);
+
+const imageUrlSchema = z
+  .string()
+  .max(300_000)
+  .nullable()
+  .refine(imageUrlRefine, { message: 'כתובת תמונה לא תקינה' });
+
 const logoUrlSchema = z
   .string()
   .max(300_000)
   .nullable()
-  .refine(
-    (val) =>
-      val === null ||
-      val.startsWith('http://') ||
-      val.startsWith('https://') ||
-      /^data:image\/(jpeg|jpg|png|webp);base64,/.test(val),
-    { message: 'כתובת לוגו לא תקינה' },
-  );
+  .refine(imageUrlRefine, { message: 'כתובת לוגו לא תקינה' });
 
 const socialUrlSchema = z
   .string()
@@ -50,6 +55,7 @@ export const updateBusinessSchema = z.object({
   facebookUrl: socialUrlSchema,
   tiktokUrl: socialUrlSchema,
   logoUrl: logoUrlSchema.optional(),
+  bannerUrl: imageUrlSchema.optional(),
   phone: z.string().min(9).optional(),
   cancellationWindowHours: z.union([
     z.literal(1),
