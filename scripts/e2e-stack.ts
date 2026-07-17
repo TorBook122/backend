@@ -74,3 +74,4 @@ main().catch(async (error) => {
   await stopTestServices().catch(() => {});
   process.exit(1);
 });
+ 
