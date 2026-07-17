@@ -197,11 +197,10 @@ export async function updateBusiness(
 
 export async function listPublicBusinesses(query?: string): Promise<BusinessListItem[]> {
   const businesses = await dbClient.businesses.listPublic(query);
-  return businesses.map(({ isPro, bannerUrl, logoUrl, ...rest }) => ({
+  return businesses.map(({ isPro, bannerUrl, ...rest }) => ({
     ...rest,
     isPro,
     bannerUrl: isPro ? bannerUrl : null,
-    logoUrl: isPro ? logoUrl : null,
   }));
 }
 
