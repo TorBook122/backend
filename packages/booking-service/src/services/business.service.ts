@@ -196,7 +196,13 @@ export async function updateBusiness(
 }
 
 export async function listPublicBusinesses(query?: string): Promise<BusinessListItem[]> {
-  return dbClient.businesses.listPublic(query);
+  const businesses = await dbClient.businesses.listPublic(query);
+  return businesses.map(({ isPro, bannerUrl, logoUrl, ...rest }) => ({
+    ...rest,
+    isPro,
+    bannerUrl: isPro ? bannerUrl : null,
+    logoUrl: isPro ? logoUrl : null,
+  }));
 }
 
 export async function listMapLocations(): Promise<BusinessMapLocationDto[]> {

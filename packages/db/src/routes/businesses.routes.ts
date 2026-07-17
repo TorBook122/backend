@@ -255,6 +255,14 @@ router.get('/', async (req, res) => {
       whatsappUrl: true,
       facebookUrl: true,
       tiktokUrl: true,
+      isPro: true,
+      bannerUrl: true,
+      logoUrl: true,
+      services: {
+        where: { isVisible: true },
+        select: { id: true, name: true, price: true },
+        orderBy: { name: 'asc' },
+      },
     },
     orderBy: { name: 'asc' },
   });

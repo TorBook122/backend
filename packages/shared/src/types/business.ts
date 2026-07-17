@@ -78,6 +78,10 @@ export type BusinessListItem = {
   whatsappUrl: string | null;
   facebookUrl: string | null;
   tiktokUrl: string | null;
+  isPro: boolean;
+  bannerUrl: string | null;
+  logoUrl: string | null;
+  services: Array<Pick<ServiceDto, 'id' | 'name' | 'price'>>;
 };
 
 export type BusinessMapLocationDto = {

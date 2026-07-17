@@ -158,6 +158,10 @@ export const dbClient = {
         whatsappUrl: string | null;
         facebookUrl: string | null;
         tiktokUrl: string | null;
+        isPro: boolean;
+        bannerUrl: string | null;
+        logoUrl: string | null;
+        services: Array<{ id: string; name: string; price: number }>;
       }>>(
         query ? `/businesses?q=${encodeURIComponent(query)}` : '/businesses',
       ),
