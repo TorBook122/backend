@@ -82,8 +82,8 @@ export async function computeAvailableSlots(
     { start: parseTimeToMinutes(dayAvail.startTime), end: parseTimeToMinutes(dayAvail.endTime) },
   ];
 
-  const dayBreak = business.breakBlocks?.find((b) => b.dayOfWeek === dayOfWeek);
-  if (dayBreak) {
+  const dayBreaks = business.breakBlocks?.filter((b) => b.dayOfWeek === dayOfWeek) ?? [];
+  for (const dayBreak of dayBreaks) {
     intervals = subtractInterval(intervals, {
       start: parseTimeToMinutes(dayBreak.startTime),
       end: parseTimeToMinutes(dayBreak.endTime),
