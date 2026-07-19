@@ -403,7 +403,7 @@ router.put('/:id/breaks', async (req, res) => {
 
   const rows = await prisma.breakBlock.findMany({
     where: { businessId },
-    orderBy: { dayOfWeek: 'asc' },
+    orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
   });
   res.json({ success: true, data: rows });
 });
