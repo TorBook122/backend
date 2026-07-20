@@ -1,38 +1,22 @@
+# Backend deploy is handled by Railway, not GitHub Actions:
+# - backend_staging → Railway Staging
+# - main → Railway Production
+#
+# Keep this file only as documentation. Do not add a competing deploy job here
+# unless you intentionally move off Railway.
+
 name: Deploy
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  info:
     runs-on: ubuntu-latest
-    environment: production
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy stub
+      - name: Railway handles deploy
         run: |
-          echo "Deploy pipeline stub — configure ECR + ECS Fargate when infrastructure is ready."
-          echo "Steps: build Docker image → push to ECR → update ECS service."
-
-      # TODO: Uncomment when AWS infrastructure is provisioned
-      # - name: Configure AWS credentials
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws-region: ${{ vars.AWS_REGION }}
-      #
-      # - name: Login to Amazon ECR
-      #   uses: aws-actions/amazon-ecr-login@v2
-      #
-      # - name: Build and push Docker image
-      #   run: |
-      #     docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA .
-      #     docker push $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA
-      #
-      # - name: Deploy to ECS
-      #   run: |
-      #     aws ecs update-service --cluster torbook --service torbook-gateway --force-new-deployment
+          echo "Deploy is configured in Railway:"
+          echo "  backend_staging → Staging environment"
+          echo "  main → Production environment"
+          echo "No GitHub Actions deploy step is required."
