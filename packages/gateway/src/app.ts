@@ -62,6 +62,7 @@ export function createApp(): Express {
 
   app.use('/api/v1/auth', serviceProxy(authServiceUrl, '/api/v1/auth'));
   app.use('/api/v1/users', proxyAuth, serviceProxy(authServiceUrl, '/api/v1/users'));
+  app.use('/api/v1/announcements', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/announcements'));
   app.use('/api/v1/businesses', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/businesses'));
   app.use('/api/v1/services', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/services'));
   app.use('/api/v1/appointments', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/appointments'));

@@ -79,8 +79,14 @@ const API_ROUTES = [
       'GET /admin',
       'POST /admin/login',
       'GET /admin/dashboard',
+      'POST /admin/announcements',
+      'POST /admin/announcements/:id/toggle',
       'POST /admin/logout',
     ],
+  },
+  {
+    group: 'Announcements',
+    routes: ['GET /api/v1/announcements/active'],
   },
 ];
 
@@ -173,7 +179,20 @@ type AdminUser = {
   deletedAt: string | null;
 };
 
-async function fetchAdminData(): Promise<{ businesses: AdminBusiness[]; users: AdminUser[] }> {
+type AdminAnnouncement = {
+  id: string;
+  title: string;
+  body: string;
+  isActive: boolean;
+  publishedBy: string;
+  createdAt: string;
+};
+
+async function fetchAdminData(): Promise<{
+  businesses: AdminBusiness[];
+  users: AdminUser[];
+  announcements: AdminAnnouncement[];
+}> {
   const internalSecret = process.env.INTERNAL_SERVICE_SECRET;
   const authServiceUrl = process.env.AUTH_SERVICE_URL;
   const bookingServiceUrl = process.env.BOOKING_SERVICE_URL;
@@ -184,21 +203,24 @@ async function fetchAdminData(): Promise<{ businesses: AdminBusiness[]; users: A
 
   const headers = { 'X-Internal-Secret': internalSecret };
 
-  const [businessesRes, usersRes] = await Promise.all([
+  const [businessesRes, usersRes, announcementsRes] = await Promise.all([
     fetch(`${bookingServiceUrl}/internal/v1/admin/businesses`, { headers }),
     fetch(`${authServiceUrl}/internal/v1/admin/users`, { headers }),
+    fetch(`${bookingServiceUrl}/internal/v1/admin/announcements`, { headers }),
   ]);
 
-  if (!businessesRes.ok || !usersRes.ok) {
+  if (!businessesRes.ok || !usersRes.ok || !announcementsRes.ok) {
     throw new Error('Failed to fetch admin dashboard data from internal services');
   }
 
   const businessesBody = (await businessesRes.json()) as { data: AdminBusiness[] };
   const usersBody = (await usersRes.json()) as { data: AdminUser[] };
+  const announcementsBody = (await announcementsRes.json()) as { data: AdminAnnouncement[] };
 
   return {
     businesses: businessesBody.data,
     users: usersBody.data,
+    announcements: announcementsBody.data,
   };
 }
 
@@ -232,6 +254,37 @@ function baseStyles(): string {
       border-radius: 6px;
       font-size: 1rem;
     }
+    textarea {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 1rem;
+      border: 1px solid #d4d4d8;
+      border-radius: 6px;
+      font-size: 1rem;
+      min-height: 6rem;
+      resize: vertical;
+      font-family: inherit;
+    }
+    .form-card {
+      background: #fff;
+      border: 1px solid #e4e4e7;
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      max-width: 640px;
+    }
+    .btn-secondary {
+      background: #52525b;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-active { background: #dcfce7; color: #166534; }
+    .badge-inactive { background: #f4f4f5; color: #52525b; }
     button, .btn {
       display: inline-block;
       padding: 0.5rem 1rem;
@@ -320,6 +373,8 @@ function renderLoginPage(error?: string): string {
 function renderDashboardPage(
   businesses: AdminBusiness[],
   users: AdminUser[],
+  announcements: AdminAnnouncement[],
+  notice?: string,
 ): string {
   const rows = businesses
     .map(
@@ -347,6 +402,30 @@ function renderDashboardPage(
     )
     .join('');
 
+  const announcementRows = announcements
+    .map(
+      (item) => `<tr>
+        <td>${escapeHtml(item.title)}</td>
+        <td>${escapeHtml(item.body)}</td>
+        <td><span class="badge ${item.isActive ? 'badge-active' : 'badge-inactive'}">${
+          item.isActive ? 'פעיל' : 'מושבת'
+        }</span></td>
+        <td>${escapeHtml(formatDate(item.createdAt))}</td>
+        <td>
+          <form method="POST" action="/admin/announcements/${escapeHtml(item.id)}/toggle" style="margin:0">
+            <input type="hidden" name="isActive" value="${item.isActive ? 'false' : 'true'}">
+            <button type="submit" class="${item.isActive ? 'btn-secondary' : ''}">${
+              item.isActive ? 'השבתה' : 'הפעלה'
+            }</button>
+          </form>
+        </td>
+      </tr>`,
+    )
+    .join('');
+
+  const noticeBlock = notice
+    ? `<div style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:6px;padding:0.75rem;margin-bottom:1rem;">${escapeHtml(notice)}</div>`
+    : '';
 
   const apiRouteGroups = API_ROUTES.map(
     (group) => `<div class="route-group">
@@ -356,7 +435,7 @@ function renderDashboardPage(
   ).join('');
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -374,6 +453,32 @@ function renderDashboardPage(
     </form>
   </div>
 
+  ${noticeBlock}
+
+  <h2>לוח מודעות — הודעות למערכת</h2>
+  <p class="muted">הודעות פעילות מוצגות בלוח הבקרה של בעלי העסקים.</p>
+  <div class="form-card">
+    <form method="POST" action="/admin/announcements">
+      <label for="title">כותרת</label>
+      <input id="title" name="title" type="text" required maxlength="120" placeholder="לדוגמה: עדכון מערכת">
+      <label for="body">תוכן ההודעה</label>
+      <textarea id="body" name="body" required maxlength="2000" placeholder="כתבו כאן עדכון או הודעה כללית למשתמשים"></textarea>
+      <button type="submit">פרסום הודעה</button>
+    </form>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>כותרת</th>
+        <th>תוכן</th>
+        <th>סטטוס</th>
+        <th>תאריך</th>
+        <th>פעולה</th>
+      </tr>
+    </thead>
+    <tbody>${announcementRows || '<tr><td colspan="5">אין הודעות עדיין.</td></tr>'}</tbody>
+  </table>
+
   <h2>Businesses - עסקים</h2>
   <table>
     <thead>
@@ -389,8 +494,6 @@ function renderDashboardPage(
     <tbody>${rows || '<tr><td colspan="6">No businesses found.</td></tr>'}</tbody>
   </table>
 
-
-
   <h2>Users - משתמשים</h2>
   <table>
     <thead>
@@ -405,8 +508,6 @@ function renderDashboardPage(
     </thead>
     <tbody>${userRows || '<tr><td colspan="6">No users found.</td></tr>'}</tbody>
   </table>
-
-
 
   <h2>API Routes</h2>
   <details>
@@ -461,9 +562,84 @@ router.get(
       return;
     }
 
-    const { businesses, users } = await fetchAdminData();
+    const { businesses, users, announcements } = await fetchAdminData();
+    const notice = typeof req.query.notice === 'string' ? req.query.notice : undefined;
 
-    res.type('html').send(renderDashboardPage(businesses, users));
+    res.type('html').send(renderDashboardPage(businesses, users, announcements, notice));
+  }),
+);
+
+router.post(
+  '/announcements',
+  asyncHandler(async (req: Request, res: Response) => {
+    const token = getSessionToken(req);
+    if (!(await isValidSession(token))) {
+      res.redirect('/admin');
+      return;
+    }
+
+    const internalSecret = process.env.INTERNAL_SERVICE_SECRET;
+    const bookingServiceUrl = process.env.BOOKING_SERVICE_URL;
+    if (!internalSecret || !bookingServiceUrl) {
+      throw new Error('Missing BOOKING_SERVICE_URL or INTERNAL_SERVICE_SECRET');
+    }
+
+    const title = typeof req.body?.title === 'string' ? req.body.title : '';
+    const body = typeof req.body?.body === 'string' ? req.body.body : '';
+    const publishedBy = getAdminCredentials().username;
+
+    const createRes = await fetch(`${bookingServiceUrl}/internal/v1/admin/announcements`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Secret': internalSecret,
+      },
+      body: JSON.stringify({ title, body, publishedBy }),
+    });
+
+    if (!createRes.ok) {
+      throw new Error('Failed to create announcement');
+    }
+
+    res.redirect('/admin/dashboard?notice=' + encodeURIComponent('ההודעה פורסמה בהצלחה'));
+  }),
+);
+
+router.post(
+  '/announcements/:id/toggle',
+  asyncHandler(async (req: Request, res: Response) => {
+    const token = getSessionToken(req);
+    if (!(await isValidSession(token))) {
+      res.redirect('/admin');
+      return;
+    }
+
+    const internalSecret = process.env.INTERNAL_SERVICE_SECRET;
+    const bookingServiceUrl = process.env.BOOKING_SERVICE_URL;
+    if (!internalSecret || !bookingServiceUrl) {
+      throw new Error('Missing BOOKING_SERVICE_URL or INTERNAL_SERVICE_SECRET');
+    }
+
+    const id = typeof req.params.id === 'string' ? req.params.id : '';
+    const isActive = req.body?.isActive === 'true' || req.body?.isActive === true;
+
+    const toggleRes = await fetch(`${bookingServiceUrl}/internal/v1/admin/announcements/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Secret': internalSecret,
+      },
+      body: JSON.stringify({ isActive }),
+    });
+
+    if (!toggleRes.ok) {
+      throw new Error('Failed to update announcement');
+    }
+
+    res.redirect(
+      '/admin/dashboard?notice=' +
+        encodeURIComponent(isActive ? 'ההודעה הופעלה' : 'ההודעה הושבתה'),
+    );
   }),
 );
 

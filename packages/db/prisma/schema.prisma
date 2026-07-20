@@ -232,3 +232,15 @@ model AuditLog {
   @@index([userId])
   @@index([action])
 }
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  isActive    Boolean  @default(true)
+  publishedBy String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, createdAt])
+}

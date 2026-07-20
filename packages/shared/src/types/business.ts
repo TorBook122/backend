@@ -67,6 +67,21 @@ export type BusinessAppointmentStats = {
   totalAllTime: number;
   todayTotal: number;
   todayConfirmed: number;
+  totalRevenueAllTime: number;
+  topServices: Array<{
+    serviceId: string;
+    serviceName: string;
+    count: number;
+  }>;
+};
+
+export type AnnouncementDto = {
+  id: string;
+  title: string;
+  body: string;
+  isActive: boolean;
+  publishedBy: string;
+  createdAt: string;
 };
 
 export type BusinessListItem = {

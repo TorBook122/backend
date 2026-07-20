@@ -294,7 +294,7 @@ export async function getBusinessAppointmentStats(
   const dayEnd = addMinutes(dayStart, 24 * 60);
   const activeFilter = { status: { notIn: [...CANCELLED_STATUSES] } };
 
-  const [totalAllTime, todayTotal, todayConfirmed] = await Promise.all([
+  const [totalAllTime, todayTotal, todayConfirmed, serviceGroups] = await Promise.all([
     prisma.appointment.count({ where: { businessId, ...activeFilter } }),
     prisma.appointment.count({
       where: { businessId, startsAt: { gte: dayStart, lt: dayEnd }, ...activeFilter },
@@ -306,9 +306,37 @@ export async function getBusinessAppointmentStats(
         status: AppointmentStatus.CONFIRMED,
       },
     }),
+    prisma.appointment.groupBy({
+      by: ['serviceId'],
+      where: { businessId, ...activeFilter },
+      _count: { serviceId: true },
+      orderBy: { _count: { serviceId: 'desc' } },
+    }),
   ]);
 
-  return { totalAllTime, todayTotal, todayConfirmed };
+  type ServiceInfo = { id: string; name: string; price: number };
+  const services: ServiceInfo[] = serviceGroups.length
+    ? await prisma.service.findMany({
+        where: { id: { in: serviceGroups.map((group) => group.serviceId) } },
+        select: { id: true, name: true, price: true },
+      })
+    : [];
+  const serviceById = new Map<string, ServiceInfo>(
+    services.map((service) => [service.id, service]),
+  );
+
+  const totalRevenueAllTime = serviceGroups.reduce((sum, group) => {
+    const price = serviceById.get(group.serviceId)?.price ?? 0;
+    return sum + price * group._count.serviceId;
+  }, 0);
+
+  const topServices = serviceGroups.slice(0, 5).map((group) => ({
+    serviceId: group.serviceId,
+    serviceName: serviceById.get(group.serviceId)?.name ?? 'שירות',
+    count: group._count.serviceId,
+  }));
+
+  return { totalAllTime, todayTotal, todayConfirmed, totalRevenueAllTime, topServices };
 }
 
 export async function getBusinessAppointments(
