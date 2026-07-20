@@ -2,6 +2,8 @@ import {
   API_ERROR_CODES,
   BUSINESS_CATEGORIES,
   analyzeCommentSentiment,
+  COMMENT_PROFANITY_ERROR,
+  containsProfanity,
   type BusinessCommentDto,
   type BusinessEngagementDto,
   type CategoryRankingsDto,
@@ -86,6 +88,12 @@ export async function listComments(slug: string, userId?: string): Promise<Busin
   return dbClient.comments.listByBusiness(business.id, userId);
 }
 
+function assertCommentTextAllowed(text: string): void {
+  if (containsProfanity(text)) {
+    throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, COMMENT_PROFANITY_ERROR);
+  }
+}
+
 export async function createComment(
   slug: string,
   userId: string,
@@ -94,6 +102,8 @@ export async function createComment(
 ): Promise<BusinessCommentDto> {
   const business = await getBusinessBySlugOrThrow(slug);
   assertNotOwnBusiness(business, userId);
+
+  assertCommentTextAllowed(text);
 
   try {
     const sentiment = analyzeCommentSentiment(text);
@@ -118,6 +128,8 @@ export async function updateComment(
 ): Promise<BusinessCommentDto> {
   const business = await getBusinessBySlugOrThrow(slug);
   assertNotOwnBusiness(business, userId);
+
+  assertCommentTextAllowed(text);
 
   const sentiment = analyzeCommentSentiment(text);
   return dbClient.comments.update(commentId, userId, text, sentiment);
