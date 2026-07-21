@@ -1,9 +1,11 @@
-# Backend deploy is handled by Railway, not GitHub Actions:
-# - backend_staging → Railway Staging
-# - main → Railway Production
+# Backend deploy is handled by Railway (not this workflow).
 #
-# Keep this file only as documentation. Do not add a competing deploy job here
-# unless you intentionally move off Railway.
+# Flow:
+# - backend_staging → Railway Staging: GitHub autodeploy ON (automatic)
+# - backend_production → Railway Production: GitHub autodeploy OFF
+#   Deploy manually: Railway CMD/CTRL+K → "Deploy Latest Commit"
+#
+# CI (ci.yml) runs on push/PR to main, backend_staging, backend_production.
 
 name: Deploy
 
@@ -14,9 +16,8 @@ jobs:
   info:
     runs-on: ubuntu-latest
     steps:
-      - name: Railway handles deploy
+      - name: Railway deploy reminder
         run: |
-          echo "Deploy is configured in Railway:"
-          echo "  backend_staging → Staging environment"
-          echo "  main → Production environment"
-          echo "No GitHub Actions deploy step is required."
+          echo "backend_staging: CI + automatic Railway Staging deploy"
+          echo "backend_production: CI on push; Railway Production deploy is manual"
+          echo "  Railway → Command Palette (CMD/CTRL+K) → Deploy Latest Commit"
