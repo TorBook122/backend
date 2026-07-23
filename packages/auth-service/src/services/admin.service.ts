@@ -5,6 +5,7 @@ export type AdminUserRow = {
   id: string;
   name: string;
   email: string | null;
+  phone: string | null;
   role: string;
   createdAt: string;
   deletedAt: string | null;
@@ -17,6 +18,7 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
       id: true,
       name: true,
       emailEnc: true,
+      phoneEnc: true,
       role: true,
       createdAt: true,
       deletedAt: true,
@@ -27,6 +29,7 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
     id: user.id,
     name: user.name,
     email: tryDecryptPii(user.emailEnc),
+    phone: tryDecryptPii(user.phoneEnc),
     role: user.role,
     createdAt: user.createdAt.toISOString(),
     deletedAt: user.deletedAt?.toISOString() ?? null,
