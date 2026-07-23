@@ -5,14 +5,21 @@ import {
   recordLoginFailure,
 } from '../middleware/rate-limiter.js';
 import {
+  activateEmployee,
   loginUser,
   logoutUser,
   googleAuthUser,
   refreshSession,
   registerUser,
+  validateEmployeeInvite,
 } from '../services/auth.service.js';
 import { AppError } from '../utils/app-error.js';
-import { googleAuthSchema, loginSchema, registerSchema } from '../validators/auth.validator.js';
+import {
+  activateEmployeeSchema,
+  googleAuthSchema,
+  loginSchema,
+  registerSchema,
+} from '../validators/auth.validator.js';
 
 export async function register(req: Request, res: Response) {
   const parsed = registerSchema.safeParse(req.body);
@@ -70,6 +77,24 @@ export async function google(req: Request, res: Response) {
   }
 
   const tokens = await googleAuthUser(parsed.data, res);
+  (req as Request & { userId?: string }).userId = tokens.user.id;
+  res.json({ success: true, data: tokens });
+}
+
+export async function employeeInvite(req: Request, res: Response) {
+  const token = typeof req.query.token === 'string' ? req.query.token : '';
+  const data = await validateEmployeeInvite(token);
+  res.json({ success: true, data });
+}
+
+export async function activateEmployeeAccount(req: Request, res: Response) {
+  const parsed = activateEmployeeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const message = parsed.error.errors[0]?.message ?? 'נתונים לא תקינים';
+    throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, message);
+  }
+
+  const tokens = await activateEmployee(parsed.data, res);
   (req as Request & { userId?: string }).userId = tokens.user.id;
   res.json({ success: true, data: tokens });
 }

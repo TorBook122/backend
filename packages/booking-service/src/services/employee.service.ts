@@ -1,21 +1,73 @@
+import { createHash, randomBytes } from 'node:crypto';
 import {
   API_ERROR_CODES,
+  AuthProvider,
+  EMPLOYEE_INVITE_TTL_DAYS,
+  EmployeePermission,
   MAX_EMPLOYEES_PER_BUSINESS,
+  UserRole,
+  type CreateEmployeeResponse,
+  type EmployeeAccountStatus,
+  type EmployeeContextDto,
   type EmployeeDto,
+  type RegenerateEmployeeInviteResponse,
 } from '@torbook/shared';
 import { dbClient, type DbBusiness } from '../clients/db.client.js';
 import { sharedClient } from '../clients/shared.client.js';
 import { AppError } from '../utils/app-error.js';
+import { assertRoleBelongsToBusiness } from './employee-role.service.js';
 import type { CreateEmployeeBody, UpdateEmployeeBody } from '../validators/employee.validator.js';
 
 type DbEmployeeRow = {
   id: string;
   businessId: string;
+  userId: string | null;
+  roleId: string | null;
   name: string;
   phoneEnc: string;
-  emailEnc: string | null;
+  emailEnc: string;
   title: string | null;
+  inviteTokenHash: string | null;
+  inviteExpiresAt: string | null;
+  user: { passwordHash: string | null } | null;
+  role: { id: string; name: string; permissions: string[] } | null;
 };
+
+function getFrontendOrigin(): string {
+  const explicit = process.env.FRONTEND_ORIGIN?.trim();
+  if (explicit) {
+    return explicit.replace(/\/$/, '');
+  }
+  const corsOrigin = process.env.CORS_ORIGIN?.split(',')[0]?.trim();
+  return (corsOrigin ?? 'http://localhost:3000').replace(/\/$/, '');
+}
+
+function hashInviteToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function buildInviteUrl(token: string): string {
+  return `${getFrontendOrigin()}/set-password?token=${encodeURIComponent(token)}`;
+}
+
+function generateInviteFields(): { rawToken: string; inviteTokenHash: string; inviteExpiresAt: string } {
+  const rawToken = randomBytes(32).toString('hex');
+  const inviteExpiresAt = new Date(
+    Date.now() + EMPLOYEE_INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  return {
+    rawToken,
+    inviteTokenHash: hashInviteToken(rawToken),
+    inviteExpiresAt,
+  };
+}
+
+function resolveAccountStatus(row: DbEmployeeRow): EmployeeAccountStatus {
+  if (row.user?.passwordHash) {
+    return 'active';
+  }
+  return 'pending_activation';
+}
 
 async function getBusinessOrThrow(businessId: string): Promise<DbBusiness> {
   try {
@@ -41,8 +93,11 @@ async function toEmployeeDto(row: DbEmployeeRow): Promise<EmployeeDto> {
     id: row.id,
     name: row.name,
     phone: await sharedClient.decryptPii(row.phoneEnc),
-    email: row.emailEnc ? await sharedClient.decryptPii(row.emailEnc) : null,
+    email: await sharedClient.decryptPii(row.emailEnc),
     title: row.title,
+    roleId: row.roleId,
+    roleName: row.role?.name ?? null,
+    accountStatus: resolveAccountStatus(row),
   };
 }
 
@@ -56,7 +111,7 @@ export async function createEmployee(
   businessId: string,
   userId: string,
   input: CreateEmployeeBody,
-): Promise<EmployeeDto> {
+): Promise<CreateEmployeeResponse> {
   await assertOwnerPro(businessId, userId);
 
   const { count } = await dbClient.employees.countByBusiness(businessId);
@@ -68,20 +123,74 @@ export async function createEmployee(
     );
   }
 
-  const phoneEnc = await sharedClient.encryptPii(await sharedClient.normalizePhone(input.phone));
-  const emailEnc =
-    input.email?.trim()
-      ? await sharedClient.encryptPii(await sharedClient.normalizeEmail(input.email))
-      : null;
+  const normalizedPhone = await sharedClient.normalizePhone(input.phone);
+  const normalizedEmail = await sharedClient.normalizeEmail(input.email);
+  const phoneHash = await sharedClient.hashPii(normalizedPhone);
+  const emailHash = await sharedClient.hashPii(normalizedEmail);
+
+  const existingPhone = await dbClient.users.findByPhoneHash(phoneHash);
+  if (existingPhone) {
+    throw new AppError(409, API_ERROR_CODES.DUPLICATE_PHONE, 'מספר טלפון כבר רשום במערכת');
+  }
+
+  const existingEmail = await dbClient.users.findByEmailHash(emailHash);
+  if (existingEmail) {
+    throw new AppError(409, API_ERROR_CODES.DUPLICATE_EMAIL, 'אימייל כבר רשום במערכת');
+  }
+
+  const phoneEnc = await sharedClient.encryptPii(normalizedPhone);
+  const emailEnc = await sharedClient.encryptPii(normalizedEmail);
+  const { rawToken, inviteTokenHash, inviteExpiresAt } = generateInviteFields();
+
+  await assertRoleBelongsToBusiness(input.roleId, businessId);
+
+  const createdUser = await dbClient.users.create({
+    name: input.name.trim(),
+    phoneEnc,
+    phoneHash,
+    emailEnc,
+    emailHash,
+    passwordHash: null,
+    provider: AuthProvider.LOCAL,
+    role: UserRole.EMPLOYEE,
+  });
 
   const row = await dbClient.employees.create(businessId, {
     name: input.name.trim(),
     phoneEnc,
     emailEnc,
     title: input.title?.trim() || null,
+    userId: createdUser.id,
+    roleId: input.roleId,
+    inviteTokenHash,
+    inviteExpiresAt,
   });
 
-  return toEmployeeDto(row);
+  const employee = await toEmployeeDto(row);
+  return {
+    ...employee,
+    inviteUrl: buildInviteUrl(rawToken),
+  };
+}
+
+export async function regenerateEmployeeInvite(
+  employeeId: string,
+  userId: string,
+): Promise<RegenerateEmployeeInviteResponse> {
+  const existing = await dbClient.employees.findById(employeeId);
+  await assertOwnerPro(existing.businessId, userId);
+
+  if (existing.user?.passwordHash) {
+    throw new AppError(409, API_ERROR_CODES.ACCOUNT_ALREADY_ACTIVE, 'חשבון העובד כבר הופעל');
+  }
+
+  const { rawToken, inviteTokenHash, inviteExpiresAt } = generateInviteFields();
+  await dbClient.employees.update(employeeId, {
+    inviteTokenHash,
+    inviteExpiresAt,
+  });
+
+  return { inviteUrl: buildInviteUrl(rawToken) };
 }
 
 export async function updateEmployee(
@@ -92,19 +201,27 @@ export async function updateEmployee(
   const existing = await dbClient.employees.findById(employeeId);
   await assertOwnerPro(existing.businessId, userId);
 
-  const data: Partial<{ name: string; phoneEnc: string; emailEnc: string | null; title: string | null }> = {};
+  const data: Partial<{
+    name: string;
+    phoneEnc: string;
+    emailEnc: string;
+    title: string | null;
+    roleId: string;
+  }> = {};
 
   if (input.name !== undefined) data.name = input.name.trim();
   if (input.phone !== undefined) {
     data.phoneEnc = await sharedClient.encryptPii(await sharedClient.normalizePhone(input.phone));
   }
   if (input.email !== undefined) {
-    data.emailEnc = input.email?.trim()
-      ? await sharedClient.encryptPii(await sharedClient.normalizeEmail(input.email))
-      : null;
+    data.emailEnc = await sharedClient.encryptPii(await sharedClient.normalizeEmail(input.email));
   }
   if (input.title !== undefined) {
     data.title = input.title?.trim() || null;
+  }
+  if (input.roleId !== undefined) {
+    await assertRoleBelongsToBusiness(input.roleId, existing.businessId);
+    data.roleId = input.roleId;
   }
 
   const row = await dbClient.employees.update(employeeId, data);
@@ -115,4 +232,14 @@ export async function deleteEmployee(employeeId: string, userId: string): Promis
   const existing = await dbClient.employees.findById(employeeId);
   await assertOwnerPro(existing.businessId, userId);
   await dbClient.employees.delete(employeeId);
+}
+
+export async function getMyEmployeeContext(userId: string): Promise<EmployeeContextDto> {
+  const employee = await dbClient.employees.findByUserId(userId);
+  return {
+    businessId: employee.business.id,
+    businessName: employee.business.name,
+    roleName: employee.role?.name ?? null,
+    permissions: (employee.role?.permissions ?? []) as EmployeePermission[],
+  };
 }

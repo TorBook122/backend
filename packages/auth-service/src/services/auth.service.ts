@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Response } from 'express';
 import { prisma } from '@torbook/db';
 import {
@@ -18,6 +18,7 @@ import {
   hashPii,
   normalizeEmail,
   normalizePhone,
+  UserRole,
   type AuthTokens,
   type AuthUser,
 } from '@torbook/shared';
@@ -25,7 +26,7 @@ import { getRedis } from '../lib/redis.js';
 import { AppError } from '../utils/app-error.js';
 import { crossSiteCookieOptions } from '../utils/cookie-options.js';
 import { verifyGoogleIdToken } from '../lib/google-auth.js';
-import type { LoginBody, RegisterBody, GoogleAuthBody } from '../validators/auth.validator.js';
+import type { ActivateEmployeeBody, LoginBody, RegisterBody, GoogleAuthBody } from '../validators/auth.validator.js';
 
 function toAuthUser(user: {
   id: string;
@@ -257,5 +258,71 @@ export async function logoutUser(refreshToken: string | undefined, res: Response
     }
   }
   clearRefreshCookie(res);
+}
+
+function hashInviteToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+async function findEmployeeByInviteToken(token: string) {
+  const tokenHash = hashInviteToken(token);
+  return prisma.employee.findFirst({
+    where: { inviteTokenHash: tokenHash },
+    include: { user: true },
+  });
+}
+
+function assertInviteEmployee(employee: Awaited<ReturnType<typeof findEmployeeByInviteToken>>) {
+  if (!employee?.user || employee.user.deletedAt) {
+    throw new AppError(400, API_ERROR_CODES.INVITE_INVALID, 'קישור הזמנה לא תקין');
+  }
+  if (employee.user.role !== UserRole.EMPLOYEE) {
+    throw new AppError(400, API_ERROR_CODES.INVITE_INVALID, 'קישור הזמנה לא תקין');
+  }
+  if (employee.user.passwordHash) {
+    throw new AppError(409, API_ERROR_CODES.ACCOUNT_ALREADY_ACTIVE, 'החשבון כבר הופעל');
+  }
+  if (!employee.inviteExpiresAt || employee.inviteExpiresAt < new Date()) {
+    throw new AppError(410, API_ERROR_CODES.INVITE_EXPIRED, 'קישור ההזמנה פג תוקף');
+  }
+  return employee;
+}
+
+export async function validateEmployeeInvite(
+  token: string,
+): Promise<{ valid: true; name: string; email: string | null }> {
+  if (!token.trim()) {
+    throw new AppError(400, API_ERROR_CODES.INVITE_INVALID, 'קישור הזמנה לא תקין');
+  }
+
+  const employee = assertInviteEmployee(await findEmployeeByInviteToken(token));
+  return {
+    valid: true,
+    name: employee.user!.name,
+    email: employee.user!.emailEnc ? tryDecryptPii(employee.user!.emailEnc) : null,
+  };
+}
+
+export async function activateEmployee(input: ActivateEmployeeBody, res: Response): Promise<AuthTokens> {
+  const employee = assertInviteEmployee(await findEmployeeByInviteToken(input.token));
+  const user = employee.user!;
+  const passwordHash = await hashPassword(input.password);
+
+  const updatedUser = await prisma.$transaction(async (tx) => {
+    const nextUser = await tx.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+    await tx.employee.update({
+      where: { id: employee.id },
+      data: {
+        inviteTokenHash: null,
+        inviteExpiresAt: null,
+      },
+    });
+    return nextUser;
+  });
+
+  return issueAuthTokens(updatedUser, res);
 }
 

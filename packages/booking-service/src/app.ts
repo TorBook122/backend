@@ -3,6 +3,7 @@ import announcementRoutes from './routes/announcement.routes.js';
 import appointmentRoutes from './routes/appointment.routes.js';
 import businessRoutes from './routes/business.routes.js';
 import employeeRoutes from './routes/employee.routes.js';
+import employeeRoleRoutes from './routes/employee-role.routes.js';
 import internalRoutes from './routes/internal.routes.js';
 import serviceRoutes from './routes/service.routes.js';
 import { errorHandler } from './middleware/error-handler.js';
@@ -23,6 +24,7 @@ export function createApp(): Express {
   app.use('/api/v1/businesses', businessRoutes);
   app.use('/api/v1/services', serviceRoutes);
   app.use('/api/v1/employees', employeeRoutes);
+  app.use('/api/v1/employee-roles', employeeRoleRoutes);
   app.use('/api/v1/appointments', appointmentRoutes);
 
   app.use(errorHandler);

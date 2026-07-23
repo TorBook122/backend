@@ -24,33 +24,33 @@ router.get('/me/upcoming', requireAuth, asyncHandler(appointmentController.myApp
 router.get(
   '/business/:id/stats',
   requireAuth,
-  requireRole(UserRole.BUSINESS_OWNER),
+  requireRole(UserRole.BUSINESS_OWNER, UserRole.EMPLOYEE),
   asyncHandler(appointmentController.businessAppointmentStats),
 );
 router.get(
   '/business/:id',
   requireAuth,
-  requireRole(UserRole.BUSINESS_OWNER),
+  requireRole(UserRole.BUSINESS_OWNER, UserRole.EMPLOYEE),
   asyncHandler(appointmentController.businessAppointments),
 );
 router.post(
   '/business/:id/time-blocks',
   requireAuth,
-  requireRole(UserRole.BUSINESS_OWNER),
+  requireRole(UserRole.BUSINESS_OWNER, UserRole.EMPLOYEE),
   auditLogger('business.timeblock.create'),
   asyncHandler(appointmentController.addTimeBlock),
 );
 router.delete(
   '/business/:id/time-blocks/:blockId',
   requireAuth,
-  requireRole(UserRole.BUSINESS_OWNER),
+  requireRole(UserRole.BUSINESS_OWNER, UserRole.EMPLOYEE),
   auditLogger('business.timeblock.delete'),
   asyncHandler(appointmentController.removeTimeBlock),
 );
 router.get(
   '/business/:id/time-blocks',
   requireAuth,
-  requireRole(UserRole.BUSINESS_OWNER),
+  requireRole(UserRole.BUSINESS_OWNER, UserRole.EMPLOYEE),
   asyncHandler(appointmentController.listTimeBlocks),
 );
 

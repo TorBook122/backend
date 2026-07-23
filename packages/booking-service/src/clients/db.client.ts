@@ -77,7 +77,7 @@ export type DbUser = {
   emailHash: string | null;
   phoneEnc: string;
   phoneHash: string;
-  passwordHash: string;
+  passwordHash: string | null;
   onboardingCompletedAt: Date | string | null;
   deletedAt: Date | string | null;
 };
@@ -321,49 +321,130 @@ export const dbClient = {
         Array<{
           id: string;
           businessId: string;
+          userId: string | null;
+          roleId: string | null;
           name: string;
           phoneEnc: string;
-          emailEnc: string | null;
+          emailEnc: string;
           title: string | null;
+          inviteTokenHash: string | null;
+          inviteExpiresAt: string | null;
+          user: { passwordHash: string | null } | null;
+          role: { id: string; name: string; permissions: string[] } | null;
         }>
       >(`/employees/business/${encodeURIComponent(businessId)}`),
     countByBusiness: (businessId: string) =>
       dbGet<{ count: number }>(`/employees/business/${encodeURIComponent(businessId)}/count`),
+    findByUserId: (userId: string) =>
+      dbGet<{
+        id: string;
+        businessId: string;
+        userId: string | null;
+        roleId: string | null;
+        name: string;
+        phoneEnc: string;
+        emailEnc: string;
+        title: string | null;
+        inviteTokenHash: string | null;
+        inviteExpiresAt: string | null;
+        business: { id: string; name: string };
+        user: { passwordHash: string | null } | null;
+        role: { id: string; name: string; permissions: string[] } | null;
+      }>(`/employees/user/${encodeURIComponent(userId)}`),
     findById: (id: string) =>
       dbGet<{
         id: string;
         businessId: string;
+        userId: string | null;
+        roleId: string | null;
         name: string;
         phoneEnc: string;
-        emailEnc: string | null;
+        emailEnc: string;
         title: string | null;
+        inviteTokenHash: string | null;
+        inviteExpiresAt: string | null;
         business: DbBusiness;
+        user: { passwordHash: string | null } | null;
+        role: { id: string; name: string; permissions: string[] } | null;
       }>(`/employees/${encodeURIComponent(id)}`),
     create: (
       businessId: string,
-      data: { name: string; phoneEnc: string; emailEnc?: string | null; title?: string | null },
+      data: {
+        name: string;
+        phoneEnc: string;
+        emailEnc: string;
+        title?: string | null;
+        userId?: string | null;
+        roleId?: string | null;
+        inviteTokenHash?: string | null;
+        inviteExpiresAt?: string | null;
+      },
     ) =>
       dbPost<{
         id: string;
         businessId: string;
+        userId: string | null;
+        roleId: string | null;
         name: string;
         phoneEnc: string;
-        emailEnc: string | null;
+        emailEnc: string;
         title: string | null;
+        inviteTokenHash: string | null;
+        inviteExpiresAt: string | null;
+        user: { passwordHash: string | null } | null;
+        role: { id: string; name: string; permissions: string[] } | null;
       }>(`/employees/business/${encodeURIComponent(businessId)}`, data),
     update: (
       id: string,
-      data: Partial<{ name: string; phoneEnc: string; emailEnc: string | null; title: string | null }>,
+      data: Partial<{
+        name: string;
+        phoneEnc: string;
+        emailEnc: string;
+        title: string | null;
+        roleId: string | null;
+        inviteTokenHash: string | null;
+        inviteExpiresAt: string | null;
+      }>,
     ) =>
       dbPatch<{
         id: string;
         businessId: string;
+        userId: string | null;
+        roleId: string | null;
         name: string;
         phoneEnc: string;
-        emailEnc: string | null;
+        emailEnc: string;
         title: string | null;
+        inviteTokenHash: string | null;
+        inviteExpiresAt: string | null;
+        user: { passwordHash: string | null } | null;
+        role: { id: string; name: string; permissions: string[] } | null;
       }>(`/employees/${encodeURIComponent(id)}`, data),
     delete: (id: string) => dbDelete<{ deleted: boolean }>(`/employees/${encodeURIComponent(id)}`),
+  },
+
+  employeeRoles: {
+    listByBusiness: (businessId: string) =>
+      dbGet<Array<{ id: string; businessId: string; name: string; permissions: string[] }>>(
+        `/employee-roles/business/${encodeURIComponent(businessId)}`,
+      ),
+    countByBusiness: (businessId: string) =>
+      dbGet<{ count: number }>(`/employee-roles/business/${encodeURIComponent(businessId)}/count`),
+    findById: (id: string) =>
+      dbGet<{ id: string; businessId: string; name: string; permissions: string[]; business: DbBusiness }>(
+        `/employee-roles/${encodeURIComponent(id)}`,
+      ),
+    create: (businessId: string, data: { name: string; permissions: string[] }) =>
+      dbPost<{ id: string; businessId: string; name: string; permissions: string[] }>(
+        `/employee-roles/business/${encodeURIComponent(businessId)}`,
+        data,
+      ),
+    update: (id: string, data: Partial<{ name: string; permissions: string[] }>) =>
+      dbPatch<{ id: string; businessId: string; name: string; permissions: string[] }>(
+        `/employee-roles/${encodeURIComponent(id)}`,
+        data,
+      ),
+    delete: (id: string) => dbDelete<{ deleted: boolean }>(`/employee-roles/${encodeURIComponent(id)}`),
   },
 
   appointments: {

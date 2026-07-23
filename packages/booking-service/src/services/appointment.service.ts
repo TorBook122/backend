@@ -3,6 +3,8 @@ import { prisma } from '@torbook/db';
 import {
   AppointmentStatus,
   API_ERROR_CODES,
+  EmployeePermission,
+  UserRole,
   addMinutes,
   parseJerusalemDateTime,
   toJerusalemDateString,
@@ -11,6 +13,7 @@ import type { AppointmentDto, BusinessAppointmentStats } from '@torbook/shared';
 import { sharedClient } from '../clients/shared.client.js';
 import { queueClient } from '../lib/queue-client.js';
 import { AppError } from '../utils/app-error.js';
+import { assertBusinessPermission, hasBusinessPermission } from '../utils/business-access.js';
 import { computeAvailableSlots, getNextAvailableSlots, invalidateSlotCache } from './availability.service.js';
 import type { CreateAppointmentBody } from '../validators/appointment.validator.js';
 
@@ -71,17 +74,6 @@ async function toOwnerAppointmentDto(
 }
 
 const CANCELLED_STATUSES = ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_BUSINESS'] as const;
-
-async function assertBusinessOwner(businessId: string, userId: string) {
-  const business = await prisma.business.findFirst({ where: { id: businessId, deletedAt: null } });
-  if (!business) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
-  }
-  if (business.ownerId !== userId) {
-    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
-  }
-  return business;
-}
 
 export async function createAppointment(
   customerId: string,
@@ -174,7 +166,11 @@ export async function createAppointment(
   }
 }
 
-export async function cancelAppointment(appointmentId: string, userId: string): Promise<AppointmentDto> {
+export async function cancelAppointment(
+  appointmentId: string,
+  userId: string,
+  userRole: string,
+): Promise<AppointmentDto> {
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
     include: {
@@ -190,9 +186,18 @@ export async function cancelAppointment(appointmentId: string, userId: string): 
 
   const isCustomer = appointment.customerId === userId;
   const isOwner = appointment.business.ownerId === userId;
+  const canCancelAsBusiness =
+    isOwner ||
+    (userRole === UserRole.EMPLOYEE &&
+      (await hasBusinessPermission(
+        userId,
+        userRole,
+        appointment.businessId,
+        EmployeePermission.CANCEL_APPOINTMENTS,
+      )));
 
-  if (!isCustomer && !isOwner) {
-    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
+  if (!isCustomer && !canCancelAsBusiness) {
+    throw new AppError(403, API_ERROR_CODES.PERMISSION_DENIED, 'אין לך הרשאה לבצע את זה');
   }
 
   if (appointment.startsAt <= new Date()) {
@@ -204,7 +209,7 @@ export async function cancelAppointment(appointmentId: string, userId: string): 
   }
 
   let newStatus: AppointmentStatus;
-  if (isOwner) {
+  if (canCancelAsBusiness && !isCustomer) {
     newStatus = AppointmentStatus.CANCELLED_BY_BUSINESS;
   } else {
     const hoursUntil = (appointment.startsAt.getTime() - Date.now()) / (1000 * 60 * 60);
@@ -285,9 +290,10 @@ export async function getCustomerAppointments(userId: string): Promise<{
 export async function getBusinessAppointmentStats(
   businessId: string,
   userId: string,
+  userRole: string,
   date?: string,
 ): Promise<BusinessAppointmentStats> {
-  await assertBusinessOwner(businessId, userId);
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.VIEW_APPOINTMENTS);
 
   const today = date ?? toJerusalemDateString(new Date());
   const dayStart = parseJerusalemDateTime(today, '00:00');
@@ -342,10 +348,11 @@ export async function getBusinessAppointmentStats(
 export async function getBusinessAppointments(
   businessId: string,
   userId: string,
+  userRole: string,
   date?: string,
   view: 'day' | 'week' = 'day',
 ): Promise<AppointmentDto[]> {
-  await assertBusinessOwner(businessId, userId);
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.VIEW_APPOINTMENTS);
 
   let startDate: Date;
   let endDate: Date;
@@ -383,17 +390,12 @@ export async function getBusinessAppointments(
 export async function createTimeBlock(
   businessId: string,
   userId: string,
+  userRole: string,
   startsAt: string,
   endsAt: string,
   note?: string,
 ) {
-  const business = await prisma.business.findFirst({ where: { id: businessId, deletedAt: null } });
-  if (!business) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
-  }
-  if (business.ownerId !== userId) {
-    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
-  }
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_SCHEDULE);
 
   const block = await prisma.timeBlock.create({
     data: {
@@ -415,11 +417,13 @@ export async function createTimeBlock(
   };
 }
 
-export async function deleteTimeBlock(businessId: string, blockId: string, userId: string): Promise<void> {
-  const business = await prisma.business.findFirst({ where: { id: businessId, deletedAt: null } });
-  if (!business || business.ownerId !== userId) {
-    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
-  }
+export async function deleteTimeBlock(
+  businessId: string,
+  blockId: string,
+  userId: string,
+  userRole: string,
+): Promise<void> {
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_SCHEDULE);
 
   const block = await prisma.timeBlock.findFirst({ where: { id: blockId, businessId } });
   if (!block) {
@@ -431,11 +435,13 @@ export async function deleteTimeBlock(businessId: string, blockId: string, userI
   await invalidateSlotCache(businessId, dateStr);
 }
 
-export async function getTimeBlocks(businessId: string, userId: string, date?: string) {
-  const business = await prisma.business.findFirst({ where: { id: businessId, deletedAt: null } });
-  if (!business || business.ownerId !== userId) {
-    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
-  }
+export async function getTimeBlocks(
+  businessId: string,
+  userId: string,
+  userRole: string,
+  date?: string,
+) {
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_SCHEDULE);
 
   const where: { businessId: string; startsAt?: { gte: Date; lt: Date } } = { businessId };
   if (date) {

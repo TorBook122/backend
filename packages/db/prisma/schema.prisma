@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   CUSTOMER
   BUSINESS_OWNER
+  EMPLOYEE
 }
 
 enum AuthProvider {
@@ -32,6 +33,18 @@ enum CommentSentiment {
   NEUTRAL
 }
 
+enum EmployeePermission {
+  VIEW_APPOINTMENTS
+  CANCEL_APPOINTMENTS
+  BROADCAST_MESSAGE
+  EDIT_BUSINESS_MEDIA
+  EDIT_BUSINESS_SOCIAL
+  EDIT_BUSINESS_PROFILE
+  EDIT_BUSINESS_SCHEDULE
+  MANAGE_SERVICES
+  EDIT_CANCELLATION_POLICY
+}
+
 model User {
   id                    String    @id @default(cuid())
   name                  String
@@ -49,6 +62,7 @@ model User {
   updatedAt             DateTime  @updatedAt
 
   business      Business?
+  employee      Employee?
   appointments  Appointment[]
   favorites        Favorite[]
   businessLikes    BusinessLike[]
@@ -89,6 +103,7 @@ model Business {
   appointments  Appointment[]
   timeBlocks    TimeBlock[]
   employees     Employee[]
+  employeeRoles EmployeeRole[]
   favorites        Favorite[]
   likes            BusinessLike[]
   comments         BusinessComment[]
@@ -96,18 +111,40 @@ model Business {
   @@index([slug])
 }
 
+model EmployeeRole {
+  id          String               @id @default(cuid())
+  businessId  String
+  business    Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String
+  permissions EmployeePermission[]
+  employees   Employee[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@unique([businessId, name])
+  @@index([businessId])
+}
+
 model Employee {
-  id         String   @id @default(cuid())
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  name       String
-  phoneEnc   String
-  emailEnc   String?
-  title      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String        @id @default(cuid())
+  businessId      String
+  business        Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roleId          String?
+  role            EmployeeRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  userId          String?       @unique
+  user            User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name            String
+  phoneEnc        String
+  emailEnc        String
+  title           String?
+  inviteTokenHash String?
+  inviteExpiresAt DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@index([businessId])
+  @@index([roleId])
+  @@index([inviteTokenHash])
 }
 
 model Availability {

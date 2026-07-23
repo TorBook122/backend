@@ -1,4 +1,4 @@
-import type { CommentSentiment } from './enums.js';
+import type { CommentSentiment, EmployeePermission } from './enums.js';
 
 export type AvailabilityDay = {
   dayOfWeek: number;
@@ -21,12 +21,38 @@ export type ServiceDto = {
   isVisible: boolean;
 };
 
+export type EmployeeAccountStatus = 'pending_activation' | 'active';
+
+export type EmployeeRoleDto = {
+  id: string;
+  name: string;
+  permissions: EmployeePermission[];
+};
+
 export type EmployeeDto = {
   id: string;
   name: string;
   phone: string;
-  email: string | null;
+  email: string;
   title: string | null;
+  roleId: string | null;
+  roleName: string | null;
+  accountStatus: EmployeeAccountStatus;
+};
+
+export type EmployeeContextDto = {
+  businessId: string;
+  businessName: string;
+  roleName: string | null;
+  permissions: EmployeePermission[];
+};
+
+export type CreateEmployeeResponse = EmployeeDto & {
+  inviteUrl: string;
+};
+
+export type RegenerateEmployeeInviteResponse = {
+  inviteUrl: string;
 };
 
 export type BusinessPublic = {

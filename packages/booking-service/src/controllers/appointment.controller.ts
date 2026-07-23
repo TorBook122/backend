@@ -20,6 +20,10 @@ function getUserId(req: Request): string {
   return (req as AuthenticatedRequest).userId;
 }
 
+function getUserRole(req: Request): string {
+  return (req as AuthenticatedRequest).userRole;
+}
+
 export async function book(req: Request, res: Response) {
   const parsed = createAppointmentSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -30,7 +34,7 @@ export async function book(req: Request, res: Response) {
 }
 
 export async function cancel(req: Request, res: Response) {
-  const appointment = await cancelAppointment(param(req.params.id), getUserId(req));
+  const appointment = await cancelAppointment(param(req.params.id), getUserId(req), getUserRole(req));
   res.json({ success: true, data: appointment });
 }
 
@@ -42,13 +46,24 @@ export async function myAppointments(req: Request, res: Response) {
 export async function businessAppointments(req: Request, res: Response) {
   const date = req.query.date as string | undefined;
   const view = (req.query.view as 'day' | 'week') ?? 'day';
-  const appointments = await getBusinessAppointments(param(req.params.id), getUserId(req), date, view);
+  const appointments = await getBusinessAppointments(
+    param(req.params.id),
+    getUserId(req),
+    getUserRole(req),
+    date,
+    view,
+  );
   res.json({ success: true, data: appointments });
 }
 
 export async function businessAppointmentStats(req: Request, res: Response) {
   const date = req.query.date as string | undefined;
-  const stats = await getBusinessAppointmentStats(param(req.params.id), getUserId(req), date);
+  const stats = await getBusinessAppointmentStats(
+    param(req.params.id),
+    getUserId(req),
+    getUserRole(req),
+    date,
+  );
   res.json({ success: true, data: stats });
 }
 
@@ -60,6 +75,7 @@ export async function addTimeBlock(req: Request, res: Response) {
   const block = await createTimeBlock(
     param(req.params.id),
     getUserId(req),
+    getUserRole(req),
     parsed.data.startsAt,
     parsed.data.endsAt,
     parsed.data.note,
@@ -68,12 +84,12 @@ export async function addTimeBlock(req: Request, res: Response) {
 }
 
 export async function removeTimeBlock(req: Request, res: Response) {
-  await deleteTimeBlock(param(req.params.id), param(req.params.blockId), getUserId(req));
+  await deleteTimeBlock(param(req.params.id), param(req.params.blockId), getUserId(req), getUserRole(req));
   res.json({ success: true, data: { deleted: true } });
 }
 
 export async function listTimeBlocks(req: Request, res: Response) {
   const date = req.query.date as string | undefined;
-  const blocks = await getTimeBlocks(param(req.params.id), getUserId(req), date);
+  const blocks = await getTimeBlocks(param(req.params.id), getUserId(req), getUserRole(req), date);
   res.json({ success: true, data: blocks });
 }

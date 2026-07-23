@@ -29,12 +29,21 @@ function getInternalSecret(): string {
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
-  const payload = (await response.json()) as ServiceResponse<T>;
+  const payload = (await response.json()) as ServiceResponse<T> & {
+    error?: string | { code?: string; message?: string };
+  };
   if (!response.ok || !payload.success || payload.data === undefined) {
+    const nestedError =
+      typeof payload.error === 'object' && payload.error !== null
+        ? (payload.error as { code?: string; message?: string })
+        : null;
+    const message =
+      nestedError?.message ??
+      (typeof payload.error === 'string' ? payload.error : `Service request failed: ${response.status}`);
     throw new ServiceRequestError(
       response.status,
-      payload.error ?? `Service request failed: ${response.status}`,
-      payload.code,
+      message,
+      payload.code ?? nestedError?.code,
       payload.details,
     );
   }

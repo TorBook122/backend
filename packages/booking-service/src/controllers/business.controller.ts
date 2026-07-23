@@ -8,6 +8,7 @@ import {
   deleteService,
   getBusinessBySlug,
   getOwnerBusiness,
+  getManagedBusiness,
   listMapLocations,
   listOwnerServices,
   listPublicBusinesses,
@@ -29,6 +30,10 @@ import {
 
 function getUserId(req: Request): string {
   return (req as AuthenticatedRequest).userId;
+}
+
+function getUserRole(req: Request): string {
+  return (req as AuthenticatedRequest).userRole;
 }
 
 export async function create(req: Request, res: Response) {
@@ -56,6 +61,11 @@ export async function getMine(req: Request, res: Response) {
   res.json({ success: true, data: business });
 }
 
+export async function getManaged(req: Request, res: Response) {
+  const business = await getManagedBusiness(getUserId(req), getUserRole(req));
+  res.json({ success: true, data: business });
+}
+
 export async function getBySlug(req: Request, res: Response) {
   const business = await getBusinessBySlug(param(req.params.slug));
   res.json({ success: true, data: business });
@@ -66,7 +76,7 @@ export async function update(req: Request, res: Response) {
   if (!parsed.success) {
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, parsed.error.errors[0]?.message ?? 'נתונים לא תקינים');
   }
-  const business = await updateBusiness(param(req.params.id), getUserId(req), parsed.data);
+  const business = await updateBusiness(param(req.params.id), getUserId(req), getUserRole(req), parsed.data);
   res.json({ success: true, data: business });
 }
 
@@ -75,7 +85,7 @@ export async function setAvailability(req: Request, res: Response) {
   if (!parsed.success) {
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, parsed.error.errors[0]?.message ?? 'נתונים לא תקינים');
   }
-  const result = await updateAvailability(param(req.params.id), getUserId(req), parsed.data);
+  const result = await updateAvailability(param(req.params.id), getUserId(req), getUserRole(req), parsed.data);
   res.json({ success: true, data: result });
 }
 
@@ -84,7 +94,7 @@ export async function setBreaks(req: Request, res: Response) {
   if (!parsed.success) {
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, parsed.error.errors[0]?.message ?? 'נתונים לא תקינים');
   }
-  const breaks = await updateBreaks(param(req.params.id), getUserId(req), parsed.data);
+  const breaks = await updateBreaks(param(req.params.id), getUserId(req), getUserRole(req), parsed.data);
   res.json({ success: true, data: breaks });
 }
 
@@ -93,12 +103,12 @@ export async function addService(req: Request, res: Response) {
   if (!parsed.success) {
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, parsed.error.errors[0]?.message ?? 'נתונים לא תקינים');
   }
-  const service = await createService(param(req.params.id), getUserId(req), parsed.data);
+  const service = await createService(param(req.params.id), getUserId(req), getUserRole(req), parsed.data);
   res.status(201).json({ success: true, data: service });
 }
 
 export async function listServices(req: Request, res: Response) {
-  const services = await listOwnerServices(param(req.params.id), getUserId(req));
+  const services = await listOwnerServices(param(req.params.id), getUserId(req), getUserRole(req));
   res.json({ success: true, data: services });
 }
 
@@ -107,13 +117,13 @@ export async function patchService(req: Request, res: Response) {
   if (!parsed.success) {
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, parsed.error.errors[0]?.message ?? 'נתונים לא תקינים');
   }
-  const service = await updateService(param(req.params.id), getUserId(req), parsed.data);
+  const service = await updateService(param(req.params.id), getUserId(req), getUserRole(req), parsed.data);
   res.json({ success: true, data: service });
 }
 
 export async function removeService(req: Request, res: Response) {
   try {
-    await deleteService(param(req.params.id), getUserId(req));
+    await deleteService(param(req.params.id), getUserId(req), getUserRole(req));
     res.json({ success: true, data: { deleted: true } });
   } catch (error) {
     if (error instanceof AppError && error.code === API_ERROR_CODES.SERVICE_HAS_APPOINTMENTS) {

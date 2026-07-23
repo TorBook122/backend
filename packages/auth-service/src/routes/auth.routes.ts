@@ -9,6 +9,8 @@ const router = Router();
 router.post('/register', auditLogger('auth.register'), asyncHandler(authController.register));
 router.post('/login', loginRateLimiter, auditLogger('auth.login'), asyncHandler(authController.login));
 router.post('/google', auditLogger('auth.google'), asyncHandler(authController.google));
+router.get('/employee-invite', asyncHandler(authController.employeeInvite));
+router.post('/activate-employee', auditLogger('auth.activate-employee'), asyncHandler(authController.activateEmployeeAccount));
 router.post('/refresh', auditLogger('auth.refresh'), asyncHandler(authController.refresh));
 router.post('/logout', auditLogger('auth.logout'), asyncHandler(authController.logout));
 

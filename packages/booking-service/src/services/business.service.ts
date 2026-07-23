@@ -1,7 +1,8 @@
-import { API_ERROR_CODES, UserRole, type AvailabilityDay, type BreakBlockDto, type BusinessListItem, type BusinessMapLocationDto, type BusinessOwner, type BusinessPublic, type ServiceDto } from '@torbook/shared';
+import { API_ERROR_CODES, EmployeePermission, UserRole, type AvailabilityDay, type BreakBlockDto, type BusinessListItem, type BusinessMapLocationDto, type BusinessOwner, type BusinessPublic, type ServiceDto } from '@torbook/shared';
 import { dbClient, type DbBusiness } from '../clients/db.client.js';
 import { sharedClient } from '../clients/shared.client.js';
 import { AppError } from '../utils/app-error.js';
+import { assertBusinessPermission } from '../utils/business-access.js';
 import type {
   CreateBusinessBody,
   CreateServiceBody,
@@ -51,14 +52,6 @@ async function getBusinessOrThrow(businessId: string): Promise<DbBusiness> {
   } catch {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
   }
-}
-
-async function assertOwner(businessId: string, userId: string) {
-  const business = await getBusinessOrThrow(businessId);
-  if (business.ownerId !== userId) {
-    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה לעסק זה');
-  }
-  return business;
 }
 
 function assertPro(business: DbBusiness) {
@@ -160,9 +153,34 @@ export async function createBusiness(userId: string, input: CreateBusinessBody):
 export async function updateBusiness(
   businessId: string,
   userId: string,
+  userRole: string,
   input: UpdateBusinessBody,
 ): Promise<BusinessOwner> {
-  const business = await assertOwner(businessId, userId);
+  if (
+    input.name !== undefined ||
+    input.category !== undefined ||
+    input.notes !== undefined ||
+    input.address !== undefined ||
+    input.phone !== undefined
+  ) {
+    await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_PROFILE);
+  }
+  if (input.logoUrl !== undefined || input.bannerUrl !== undefined) {
+    await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_MEDIA);
+  }
+  if (
+    input.instagramUrl !== undefined ||
+    input.whatsappUrl !== undefined ||
+    input.facebookUrl !== undefined ||
+    input.tiktokUrl !== undefined
+  ) {
+    await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_SOCIAL);
+  }
+  if (input.cancellationWindowHours !== undefined) {
+    await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_CANCELLATION_POLICY);
+  }
+
+  const business = await getBusinessOrThrow(businessId);
   if (input.bannerUrl !== undefined) {
     assertPro(business);
   }
@@ -237,12 +255,36 @@ export async function getOwnerBusiness(userId: string): Promise<BusinessOwner | 
   };
 }
 
+export async function getManagedBusiness(userId: string, userRole: string): Promise<BusinessOwner | null> {
+  if (userRole === UserRole.BUSINESS_OWNER) {
+    return getOwnerBusiness(userId);
+  }
+
+  if (userRole === UserRole.EMPLOYEE) {
+    try {
+      const employee = await dbClient.employees.findByUserId(userId);
+      const business = await dbClient.businesses.findById(employee.businessId, 'full');
+      const resolved = await ensureBusinessCoordinates(business);
+      return {
+        ...toPublic({ ...resolved, services: (resolved.services ?? []).filter((s) => s.isVisible) }),
+        phone: await sharedClient.decryptPii(resolved.phoneEnc),
+        isPro: resolved.isPro,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 export async function updateAvailability(
   businessId: string,
   userId: string,
+  userRole: string,
   input: UpdateAvailabilityBody,
 ): Promise<{ days: AvailabilityDay[]; warning: string | null }> {
-  await assertOwner(businessId, userId);
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_SCHEDULE);
 
   const { count: futureAppointments } = await dbClient.businesses.countFutureAppointments(businessId);
 
@@ -270,9 +312,10 @@ export async function updateAvailability(
 export async function updateBreaks(
   businessId: string,
   userId: string,
+  userRole: string,
   input: UpdateBreaksBody,
 ): Promise<BreakBlockDto[]> {
-  await assertOwner(businessId, userId);
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_SCHEDULE);
 
   const business = await getBusinessOrThrow(businessId);
   const availability = business.availability ?? [];
@@ -298,9 +341,10 @@ export async function updateBreaks(
 export async function createService(
   businessId: string,
   userId: string,
+  userRole: string,
   input: CreateServiceBody,
 ): Promise<ServiceDto> {
-  await assertOwner(businessId, userId);
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.MANAGE_SERVICES);
   const service = await dbClient.services.create(businessId, {
     name: input.name,
     durationMins: input.durationMins,
@@ -312,12 +356,11 @@ export async function createService(
 export async function updateService(
   serviceId: string,
   userId: string,
+  userRole: string,
   input: UpdateServiceBody,
 ): Promise<ServiceDto> {
   const service = await dbClient.services.findById(serviceId);
-  if (service.business.ownerId !== userId) {
-    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
-  }
+  await assertBusinessPermission(userId, userRole, service.business.id, EmployeePermission.MANAGE_SERVICES);
 
   const updated = await dbClient.services.update(serviceId, {
     ...(input.name !== undefined ? { name: input.name } : {}),
@@ -327,11 +370,9 @@ export async function updateService(
   return toServiceDto(updated);
 }
 
-export async function deleteService(serviceId: string, userId: string): Promise<void> {
+export async function deleteService(serviceId: string, userId: string, userRole: string): Promise<void> {
   const service = await dbClient.services.findById(serviceId);
-  if (service.business.ownerId !== userId) {
-    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה');
-  }
+  await assertBusinessPermission(userId, userRole, service.business.id, EmployeePermission.MANAGE_SERVICES);
 
   const futureAppt = await dbClient.services.findFutureAppointment(serviceId);
 
@@ -347,8 +388,12 @@ export async function deleteService(serviceId: string, userId: string): Promise<
   await dbClient.services.delete(serviceId);
 }
 
-export async function listOwnerServices(businessId: string, userId: string): Promise<ServiceDto[]> {
-  await assertOwner(businessId, userId);
+export async function listOwnerServices(
+  businessId: string,
+  userId: string,
+  userRole: string,
+): Promise<ServiceDto[]> {
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.MANAGE_SERVICES);
   const services = await dbClient.services.listByBusiness(businessId);
   return services.map(toServiceDto);
 }

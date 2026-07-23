@@ -4,7 +4,9 @@ import type { AuthenticatedRequest } from '../middleware/auth.js';
 import {
   createEmployee,
   deleteEmployee,
+  getMyEmployeeContext,
   listEmployees,
+  regenerateEmployeeInvite,
   updateEmployee,
 } from '../services/employee.service.js';
 import { AppError } from '../utils/app-error.js';
@@ -41,4 +43,14 @@ export async function patch(req: Request, res: Response) {
 export async function remove(req: Request, res: Response) {
   await deleteEmployee(param(req.params.id), getUserId(req));
   res.json({ success: true, data: { deleted: true } });
+}
+
+export async function regenerateInvite(req: Request, res: Response) {
+  const result = await regenerateEmployeeInvite(param(req.params.id), getUserId(req));
+  res.json({ success: true, data: result });
+}
+
+export async function me(req: Request, res: Response) {
+  const context = await getMyEmployeeContext(getUserId(req));
+  res.json({ success: true, data: context });
 }

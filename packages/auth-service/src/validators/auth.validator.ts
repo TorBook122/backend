@@ -23,6 +23,18 @@ export const googleAuthSchema = z.object({
   role: z.nativeEnum(UserRole).optional(),
 });
 
+export const activateEmployeeSchema = z
+  .object({
+    token: z.string().min(1, 'קישור הזמנה לא תקין'),
+    password: z.string().min(8, 'סיסמה חייבת להכיל לפחות 8 תווים'),
+    confirmPassword: z.string().min(8, 'סיסמה חייבת להכיל לפחות 8 תווים'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'הסיסמאות אינן תואמות',
+    path: ['confirmPassword'],
+  });
+
 export type RegisterBody = z.infer<typeof registerSchema>;
 export type LoginBody = z.infer<typeof loginSchema>;
 export type GoogleAuthBody = z.infer<typeof googleAuthSchema>;
+export type ActivateEmployeeBody = z.infer<typeof activateEmployeeSchema>;

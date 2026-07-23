@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as businessController from '../controllers/business.controller.js';
 import * as employeeController from '../controllers/employee.controller.js';
+import * as employeeRoleController from '../controllers/employee-role.controller.js';
 import * as engagementController from '../controllers/engagement.controller.js';
 import { auditLogger } from '../middleware/audit-logger.js';
 import { optionalAuth, requireAuth, requireRole } from '../middleware/auth.js';
@@ -28,6 +29,12 @@ router.post(
   asyncHandler(businessController.create),
 );
 router.get('/mine/owner', requireAuth, requireRole(UserRole.BUSINESS_OWNER), asyncHandler(businessController.getMine));
+router.get(
+  '/mine/managed',
+  requireAuth,
+  requireRole(UserRole.BUSINESS_OWNER, UserRole.EMPLOYEE),
+  asyncHandler(businessController.getManaged),
+);
 
 router.get('/:slug/slots', asyncHandler(businessController.getSlots));
 router.get('/:slug/engagement', optionalAuth, asyncHandler(engagementController.engagement));
@@ -38,35 +45,42 @@ router.put('/:slug/comments', requireAuth, asyncHandler(engagementController.cre
 router.put('/:slug/comments/:commentId', requireAuth, asyncHandler(engagementController.updateCommentHandler));
 router.delete('/:slug/comments/:commentId', requireAuth, asyncHandler(engagementController.removeComment));
 router.get('/:slug', asyncHandler(businessController.getBySlug));
+const ownerOrEmployee = [UserRole.BUSINESS_OWNER, UserRole.EMPLOYEE] as const;
+
 router.patch(
   '/:id',
   requireAuth,
-  requireRole(UserRole.BUSINESS_OWNER),
+  requireRole(...ownerOrEmployee),
   auditLogger('business.update'),
   asyncHandler(businessController.update),
 );
 router.put(
   '/:id/availability',
   requireAuth,
-  requireRole(UserRole.BUSINESS_OWNER),
+  requireRole(...ownerOrEmployee),
   auditLogger('business.availability.update'),
   asyncHandler(businessController.setAvailability),
 );
 router.put(
   '/:id/breaks',
   requireAuth,
-  requireRole(UserRole.BUSINESS_OWNER),
+  requireRole(...ownerOrEmployee),
   auditLogger('business.breaks.update'),
   asyncHandler(businessController.setBreaks),
 );
 router.post(
   '/:id/services',
   requireAuth,
-  requireRole(UserRole.BUSINESS_OWNER),
+  requireRole(...ownerOrEmployee),
   auditLogger('business.service.create'),
   asyncHandler(businessController.addService),
 );
-router.get('/:id/services', requireAuth, requireRole(UserRole.BUSINESS_OWNER), asyncHandler(businessController.listServices));
+router.get(
+  '/:id/services',
+  requireAuth,
+  requireRole(...ownerOrEmployee),
+  asyncHandler(businessController.listServices),
+);
 
 router.post(
   '/:id/employees',
@@ -80,6 +94,20 @@ router.get(
   requireAuth,
   requireRole(UserRole.BUSINESS_OWNER),
   asyncHandler(employeeController.list),
+);
+
+router.get(
+  '/:id/employee-roles',
+  requireAuth,
+  requireRole(UserRole.BUSINESS_OWNER),
+  asyncHandler(employeeRoleController.list),
+);
+router.post(
+  '/:id/employee-roles',
+  requireAuth,
+  requireRole(UserRole.BUSINESS_OWNER),
+  auditLogger('business.employee-role.create'),
+  asyncHandler(employeeRoleController.create),
 );
 
 export default router;
