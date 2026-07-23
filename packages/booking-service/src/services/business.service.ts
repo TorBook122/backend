@@ -2,7 +2,7 @@ import { API_ERROR_CODES, EmployeePermission, UserRole, type AvailabilityDay, ty
 import { dbClient, type DbBusiness } from '../clients/db.client.js';
 import { sharedClient } from '../clients/shared.client.js';
 import { AppError } from '../utils/app-error.js';
-import { assertBusinessPermission } from '../utils/business-access.js';
+import { assertAnyBusinessPermission, assertBusinessPermission } from '../utils/business-access.js';
 import type {
   CreateBusinessBody,
   CreateServiceBody,
@@ -315,7 +315,10 @@ export async function updateBreaks(
   userRole: string,
   input: UpdateBreaksBody,
 ): Promise<BreakBlockDto[]> {
-  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_SCHEDULE);
+  await assertAnyBusinessPermission(userId, userRole, businessId, [
+    EmployeePermission.EDIT_BUSINESS_SCHEDULE,
+    EmployeePermission.CALENDAR_SET_BREAK,
+  ]);
 
   const business = await getBusinessOrThrow(businessId);
   const availability = business.availability ?? [];

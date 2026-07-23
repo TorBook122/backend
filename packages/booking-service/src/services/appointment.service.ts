@@ -13,9 +13,22 @@ import type { AppointmentDto, BusinessAppointmentStats } from '@torbook/shared';
 import { sharedClient } from '../clients/shared.client.js';
 import { queueClient } from '../lib/queue-client.js';
 import { AppError } from '../utils/app-error.js';
-import { assertBusinessPermission, hasBusinessPermission } from '../utils/business-access.js';
+import {
+  assertAnyBusinessPermission,
+  assertBusinessPermission,
+  assertNotAffiliatedBusiness,
+  hasBusinessPermission,
+} from '../utils/business-access.js';
 import { computeAvailableSlots, getNextAvailableSlots, invalidateSlotCache } from './availability.service.js';
 import type { CreateAppointmentBody } from '../validators/appointment.validator.js';
+
+const CALENDAR_ACCESS_PERMISSIONS: EmployeePermission[] = [
+  EmployeePermission.VIEW_APPOINTMENTS,
+  EmployeePermission.CANCEL_APPOINTMENTS,
+  EmployeePermission.CALENDAR_BLOCK_HOURS,
+  EmployeePermission.CALENDAR_SET_BREAK,
+  EmployeePermission.CALENDAR_BOOK_APPOINTMENT,
+];
 
 function advisoryLockKey(businessId: string, date: string, time: string): bigint {
   const hash = createHash('sha256').update(`${businessId}:${date}:${time}`).digest();
@@ -84,6 +97,13 @@ export async function createAppointment(
   if (!business) {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'עסק לא נמצא');
   }
+
+  await assertNotAffiliatedBusiness(
+    customerId,
+    business.id,
+    business.ownerId,
+    'לא ניתן לקבוע תור לעסק שלך',
+  );
 
   const service = await prisma.service.findFirst({
     where: { id: input.serviceId, businessId: business.id, isVisible: true },
@@ -293,7 +313,7 @@ export async function getBusinessAppointmentStats(
   userRole: string,
   date?: string,
 ): Promise<BusinessAppointmentStats> {
-  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.VIEW_APPOINTMENTS);
+  await assertAnyBusinessPermission(userId, userRole, businessId, CALENDAR_ACCESS_PERMISSIONS);
 
   const today = date ?? toJerusalemDateString(new Date());
   const dayStart = parseJerusalemDateTime(today, '00:00');
@@ -352,7 +372,7 @@ export async function getBusinessAppointments(
   date?: string,
   view: 'day' | 'week' = 'day',
 ): Promise<AppointmentDto[]> {
-  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.VIEW_APPOINTMENTS);
+  await assertAnyBusinessPermission(userId, userRole, businessId, CALENDAR_ACCESS_PERMISSIONS);
 
   let startDate: Date;
   let endDate: Date;
@@ -395,7 +415,7 @@ export async function createTimeBlock(
   endsAt: string,
   note?: string,
 ) {
-  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_SCHEDULE);
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.CALENDAR_BLOCK_HOURS);
 
   const block = await prisma.timeBlock.create({
     data: {
@@ -423,7 +443,7 @@ export async function deleteTimeBlock(
   userId: string,
   userRole: string,
 ): Promise<void> {
-  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_SCHEDULE);
+  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.CALENDAR_BLOCK_HOURS);
 
   const block = await prisma.timeBlock.findFirst({ where: { id: blockId, businessId } });
   if (!block) {
@@ -441,7 +461,7 @@ export async function getTimeBlocks(
   userRole: string,
   date?: string,
 ) {
-  await assertBusinessPermission(userId, userRole, businessId, EmployeePermission.EDIT_BUSINESS_SCHEDULE);
+  await assertAnyBusinessPermission(userId, userRole, businessId, CALENDAR_ACCESS_PERMISSIONS);
 
   const where: { businessId: string; startsAt?: { gte: Date; lt: Date } } = { businessId };
   if (date) {
