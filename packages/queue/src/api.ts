@@ -17,7 +17,9 @@ function isQueueJob(body: unknown): body is QueueJob {
   if (!body || typeof body !== 'object') return false;
   const job = body as Record<string, unknown>;
   return (
-    (job.type === 'REMINDER' || job.type === 'CANCELLATION') &&
+    (job.type === 'REMINDER' ||
+      job.type === 'CANCELLATION' ||
+      job.type === 'BOOKING_CONFIRMATION') &&
     typeof job.userId === 'string' &&
     typeof job.title === 'string' &&
     typeof job.body === 'string' &&

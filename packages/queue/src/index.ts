@@ -15,6 +15,17 @@ export async function enqueueJob(job: QueueJob): Promise<void> {
   if (isLogOnlyMode()) {
     // eslint-disable-next-line no-console
     console.log('[SQS log-only enqueue]', job);
+    // No SQS worker in local Docker — run due jobs inline so WhatsApp/FCM still fire.
+    const delayMs = new Date(job.scheduledAt).getTime() - Date.now();
+    if (delayMs <= 1000) {
+      await processJob(job);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('[SQS log-only] delayed job skipped (no worker)', {
+        type: job.type,
+        scheduledAt: job.scheduledAt,
+      });
+    }
     return;
   }
 
@@ -40,6 +51,12 @@ export async function enqueueJob(job: QueueJob): Promise<void> {
 }
 
 export async function processJob(job: QueueJob): Promise<void> {
+  if (job.type === 'BOOKING_CONFIRMATION') {
+    const { handleBookingConfirmation } = await import('./handlers.js');
+    await handleBookingConfirmation(job);
+    return;
+  }
+
   const { handlePushNotification } = await import('./handlers.js');
   await handlePushNotification(job);
 }

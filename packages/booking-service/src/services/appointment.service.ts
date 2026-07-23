@@ -179,6 +179,34 @@ export async function createAppointment(
       });
     }
 
+    const customer = await prisma.user.findUnique({
+      where: { id: customerId },
+      select: { phoneEnc: true, name: true },
+    });
+    if (customer?.phoneEnc) {
+      try {
+        const phone = await sharedClient.decryptPii(customer.phoneEnc);
+        const [year, month, day] = input.date.split('-');
+        const dateFormatted = `${day}.${month}.${year}`;
+        await queueClient.enqueue({
+          type: 'BOOKING_CONFIRMATION',
+          userId: customerId,
+          title: 'התור נקבע בהצלחה',
+          body: `שלום ${customer.name}, התור שלך ל${service.name} ב${business.name} בתאריך ${dateFormatted} ובשעה ${input.time} נקבע בהצלחה!`,
+          data: {
+            type: 'BOOKING_CONFIRMATION',
+            appointmentId: appointment.id,
+            businessSlug: business.slug,
+            phone,
+          },
+          scheduledAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('[booking] failed to enqueue BOOKING_CONFIRMATION', error);
+      }
+    }
+
     return toAppointmentDto(appointment);
   } catch (error) {
     if (error instanceof AppError) throw error;
