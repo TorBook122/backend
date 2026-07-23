@@ -181,6 +181,7 @@ type AdminUser = {
   name: string;
   email: string | null;
   phone: string | null;
+  hasPhone: boolean;
   role: string;
   createdAt: string;
   deletedAt: string | null;
@@ -397,17 +398,22 @@ function renderDashboardPage(
     .join('');
 
   const userRows = users
-    .map(
-      (user) => `<tr>
+    .map((user) => {
+      const phoneDisplay = user.phone
+        ? user.phone
+        : user.hasPhone
+          ? 'פענוח נכשל'
+          : '—';
+      return `<tr>
         <td>${escapeHtml(user.id)}</td>
         <td>${escapeHtml(user.name)}</td>
+        <td dir="ltr">${escapeHtml(phoneDisplay)}</td>
         <td>${escapeHtml(user.email ?? '—')}</td>
-        <td dir="ltr">${escapeHtml(user.phone ?? '—')}</td>
         <td>${escapeHtml(user.role)}</td>
         <td>${escapeHtml(formatDate(user.createdAt))}</td>
         <td>${escapeHtml(formatDate(user.deletedAt))}</td>
-      </tr>`,
-    )
+      </tr>`;
+    })
     .join('');
 
   const announcementRows = announcements
@@ -508,8 +514,8 @@ function renderDashboardPage(
       <tr>
         <th>ID</th>
         <th>Name</th>
-        <th>Email</th>
         <th>Phone</th>
+        <th>Email</th>
         <th>Role</th>
         <th>Created</th>
         <th>Deleted</th>
