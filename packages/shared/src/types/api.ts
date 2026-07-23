@@ -9,6 +9,9 @@ export type AuthUser = {
   onboardingCompletedAt: string | null;
   hasPhone: boolean;
   phone: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+  hasPassword: boolean;
 };
 
 export type AuthTokens = {

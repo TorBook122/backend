@@ -35,6 +35,9 @@ function toAuthUser(user: {
   onboardingCompletedAt: Date | null;
   phoneHash: string | null;
   phoneEnc: string | null;
+  emailEnc: string | null;
+  avatarUrl: string | null;
+  passwordHash: string | null;
 }): AuthUser {
   return {
     id: user.id,
@@ -43,6 +46,9 @@ function toAuthUser(user: {
     onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
     hasPhone: !!user.phoneHash,
     phone: tryDecryptPii(user.phoneEnc),
+    email: tryDecryptPii(user.emailEnc),
+    avatarUrl: user.avatarUrl,
+    hasPassword: !!user.passwordHash,
   };
 }
 
@@ -118,6 +124,9 @@ async function issueAuthTokens(
     onboardingCompletedAt: Date | null;
     phoneHash: string | null;
     phoneEnc: string | null;
+    emailEnc: string | null;
+    avatarUrl: string | null;
+    passwordHash: string | null;
   },
   res: Response,
   rememberMe = false,

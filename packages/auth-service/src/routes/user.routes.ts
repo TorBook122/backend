@@ -10,6 +10,20 @@ const router = Router();
 router.get('/me', requireAuth, asyncHandler(userController.getMe));
 
 router.patch(
+  '/me',
+  requireAuth,
+  auditLogger('user.update_profile'),
+  asyncHandler(userController.updateProfile),
+);
+
+router.patch(
+  '/me/password',
+  requireAuth,
+  auditLogger('user.change_password'),
+  asyncHandler(userController.changePassword),
+);
+
+router.patch(
   '/me/phone',
   requireAuth,
   auditLogger('user.complete_phone'),
