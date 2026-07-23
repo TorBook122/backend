@@ -126,7 +126,7 @@ All secrets are set on the single `torbook` service:
 | `JWT_ACCESS_SECRET` | yes | `openssl rand -hex 32` |
 | `JWT_REFRESH_SECRET` | yes | `openssl rand -hex 32` |
 | `AES_ENCRYPTION_KEY` | yes | 64 hex characters (32 bytes) |
-| `CORS_ORIGIN` | yes | Comma-separated frontend origins |
+| `CORS_ORIGIN` | yes | Comma-separated frontend origins (no path suffix). Invite links use the first non-localhost origin; `*.github.io` gets `/frontend` appended. |
 | `AWS_REGION` | yes | SQS region |
 | `AWS_SQS_QUEUE_URL` | yes | Empty or placeholder enables log-only mode |
 | `FCM_SERVICE_ACCOUNT_JSON` | yes | Firebase service account as single-line JSON |

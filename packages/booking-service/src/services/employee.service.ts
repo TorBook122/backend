@@ -33,13 +33,36 @@ type DbEmployeeRow = {
   role: { id: string; name: string; permissions: string[] } | null;
 };
 
-function getFrontendOrigin(): string {
-  const explicit = process.env.FRONTEND_ORIGIN?.trim();
-  if (explicit) {
-    return explicit.replace(/\/$/, '');
+function isLocalOrigin(origin: string): boolean {
+  try {
+    const host = new URL(origin).hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  } catch {
+    return false;
   }
-  const corsOrigin = process.env.CORS_ORIGIN?.split(',')[0]?.trim();
-  return (corsOrigin ?? 'http://localhost:3000').replace(/\/$/, '');
+}
+
+/**
+ * Public app base for invite links, derived from CORS_ORIGIN (same var as Railway).
+ * Skips localhost when a public origin is listed; appends /frontend for GitHub Pages.
+ */
+function getInviteBaseUrl(): string {
+  const origins = (process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
+  const origin = origins.find((o) => !isLocalOrigin(o)) ?? origins[0] ?? 'http://localhost:3000';
+
+  try {
+    if (new URL(origin).hostname.endsWith('github.io')) {
+      return `${origin}/frontend`;
+    }
+  } catch {
+    /* ignore invalid origin */
+  }
+
+  return origin;
 }
 
 function hashInviteToken(token: string): string {
@@ -47,7 +70,7 @@ function hashInviteToken(token: string): string {
 }
 
 function buildInviteUrl(token: string): string {
-  return `${getFrontendOrigin()}/set-password?token=${encodeURIComponent(token)}`;
+  return `${getInviteBaseUrl()}/set-password?token=${encodeURIComponent(token)}`;
 }
 
 function generateInviteFields(): { rawToken: string; inviteTokenHash: string; inviteExpiresAt: string } {
