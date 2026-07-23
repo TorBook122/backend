@@ -1,5 +1,5 @@
 import { prisma } from '@torbook/db';
-import { decryptPii } from '@torbook/shared';
+import { tryDecryptPii } from '@torbook/shared';
 
 export type AdminUserRow = {
   id: string;
@@ -26,7 +26,7 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
   return users.map((user) => ({
     id: user.id,
     name: user.name,
-    email: user.emailEnc ? decryptPii(user.emailEnc) : null,
+    email: tryDecryptPii(user.emailEnc),
     role: user.role,
     createdAt: user.createdAt.toISOString(),
     deletedAt: user.deletedAt?.toISOString() ?? null,
