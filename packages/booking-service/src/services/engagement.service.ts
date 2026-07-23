@@ -10,6 +10,7 @@ import {
 } from '@torbook/shared';
 import { dbClient, type DbBusiness } from '../clients/db.client.js';
 import { AppError } from '../utils/app-error.js';
+import { assertNotAffiliatedBusiness } from '../utils/business-access.js';
 
 async function getBusinessBySlugOrThrow(slug: string): Promise<DbBusiness> {
   try {
@@ -19,10 +20,13 @@ async function getBusinessBySlugOrThrow(slug: string): Promise<DbBusiness> {
   }
 }
 
-function assertNotOwnBusiness(business: DbBusiness, userId: string): void {
-  if (business.ownerId === userId) {
-    throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'לא ניתן לדרג את העסק שלך');
-  }
+async function assertNotOwnBusiness(business: DbBusiness, userId: string): Promise<void> {
+  await assertNotAffiliatedBusiness(
+    userId,
+    business.id,
+    business.ownerId,
+    'לא ניתן לדרג את העסק שלך',
+  );
 }
 
 export async function getRankings(): Promise<CategoryRankingsDto[]> {
@@ -65,7 +69,7 @@ export async function getEngagement(slug: string, userId?: string): Promise<Busi
 
 export async function addLike(slug: string, userId: string): Promise<{ liked: true; likeCount: number }> {
   const business = await getBusinessBySlugOrThrow(slug);
-  assertNotOwnBusiness(business, userId);
+  await assertNotOwnBusiness(business, userId);
 
   await dbClient.likes.upsert(userId, business.id);
   const { count: likeCount } = await dbClient.likes.count(business.id);
@@ -75,7 +79,7 @@ export async function addLike(slug: string, userId: string): Promise<{ liked: tr
 
 export async function removeLike(slug: string, userId: string): Promise<{ liked: false; likeCount: number }> {
   const business = await getBusinessBySlugOrThrow(slug);
-  assertNotOwnBusiness(business, userId);
+  await assertNotOwnBusiness(business, userId);
 
   await dbClient.likes.remove(userId, business.id);
   const { count: likeCount } = await dbClient.likes.count(business.id);
@@ -101,7 +105,7 @@ export async function createComment(
   text: string,
 ): Promise<BusinessCommentDto> {
   const business = await getBusinessBySlugOrThrow(slug);
-  assertNotOwnBusiness(business, userId);
+  await assertNotOwnBusiness(business, userId);
 
   assertCommentTextAllowed(text);
 
@@ -127,7 +131,7 @@ export async function updateComment(
   text: string,
 ): Promise<BusinessCommentDto> {
   const business = await getBusinessBySlugOrThrow(slug);
-  assertNotOwnBusiness(business, userId);
+  await assertNotOwnBusiness(business, userId);
 
   assertCommentTextAllowed(text);
 
@@ -137,7 +141,7 @@ export async function updateComment(
 
 export async function deleteComment(slug: string, userId: string, commentId: string): Promise<void> {
   const business = await getBusinessBySlugOrThrow(slug);
-  assertNotOwnBusiness(business, userId);
+  await assertNotOwnBusiness(business, userId);
 
   await dbClient.comments.remove(commentId, userId);
 }
