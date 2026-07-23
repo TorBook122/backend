@@ -41,11 +41,17 @@ const API_ROUTES = [
       'PUT /api/v1/businesses/:id/breaks',
       'POST /api/v1/businesses/:id/services',
       'GET /api/v1/businesses/:id/services',
+      'POST /api/v1/businesses/:id/employees',
+      'GET /api/v1/businesses/:id/employees',
     ],
   },
   {
     group: 'Services',
     routes: ['PATCH /api/v1/services/:id', 'DELETE /api/v1/services/:id'],
+  },
+  {
+    group: 'Employees',
+    routes: ['PATCH /api/v1/employees/:id', 'DELETE /api/v1/employees/:id'],
   },
   {
     group: 'Appointments',

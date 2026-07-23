@@ -315,6 +315,57 @@ export const dbClient = {
       dbGet<DbAppointment | null>(`/services/${encodeURIComponent(id)}/future-appointment`),
   },
 
+  employees: {
+    listByBusiness: (businessId: string) =>
+      dbGet<
+        Array<{
+          id: string;
+          businessId: string;
+          name: string;
+          phoneEnc: string;
+          emailEnc: string | null;
+          title: string | null;
+        }>
+      >(`/employees/business/${encodeURIComponent(businessId)}`),
+    countByBusiness: (businessId: string) =>
+      dbGet<{ count: number }>(`/employees/business/${encodeURIComponent(businessId)}/count`),
+    findById: (id: string) =>
+      dbGet<{
+        id: string;
+        businessId: string;
+        name: string;
+        phoneEnc: string;
+        emailEnc: string | null;
+        title: string | null;
+        business: DbBusiness;
+      }>(`/employees/${encodeURIComponent(id)}`),
+    create: (
+      businessId: string,
+      data: { name: string; phoneEnc: string; emailEnc?: string | null; title?: string | null },
+    ) =>
+      dbPost<{
+        id: string;
+        businessId: string;
+        name: string;
+        phoneEnc: string;
+        emailEnc: string | null;
+        title: string | null;
+      }>(`/employees/business/${encodeURIComponent(businessId)}`, data),
+    update: (
+      id: string,
+      data: Partial<{ name: string; phoneEnc: string; emailEnc: string | null; title: string | null }>,
+    ) =>
+      dbPatch<{
+        id: string;
+        businessId: string;
+        name: string;
+        phoneEnc: string;
+        emailEnc: string | null;
+        title: string | null;
+      }>(`/employees/${encodeURIComponent(id)}`, data),
+    delete: (id: string) => dbDelete<{ deleted: boolean }>(`/employees/${encodeURIComponent(id)}`),
+  },
+
   appointments: {
     findById: (id: string, include?: 'full') =>
       dbGet<DbAppointment>(`/appointments/${encodeURIComponent(id)}${include ? '?include=full' : ''}`),

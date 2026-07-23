@@ -21,6 +21,14 @@ export type ServiceDto = {
   isVisible: boolean;
 };
 
+export type EmployeeDto = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  title: string | null;
+};
+
 export type BusinessPublic = {
   id: string;
   name: string;

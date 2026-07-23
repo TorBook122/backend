@@ -88,11 +88,26 @@ model Business {
   breakBlocks   BreakBlock[]
   appointments  Appointment[]
   timeBlocks    TimeBlock[]
+  employees     Employee[]
   favorites        Favorite[]
   likes            BusinessLike[]
   comments         BusinessComment[]
 
   @@index([slug])
+}
+
+model Employee {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  phoneEnc   String
+  emailEnc   String?
+  title      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId])
 }
 
 model Availability {

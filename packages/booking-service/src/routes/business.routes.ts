@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as businessController from '../controllers/business.controller.js';
+import * as employeeController from '../controllers/employee.controller.js';
 import * as engagementController from '../controllers/engagement.controller.js';
 import { auditLogger } from '../middleware/audit-logger.js';
 import { optionalAuth, requireAuth, requireRole } from '../middleware/auth.js';
@@ -66,5 +67,19 @@ router.post(
   asyncHandler(businessController.addService),
 );
 router.get('/:id/services', requireAuth, requireRole(UserRole.BUSINESS_OWNER), asyncHandler(businessController.listServices));
+
+router.post(
+  '/:id/employees',
+  requireAuth,
+  requireRole(UserRole.BUSINESS_OWNER),
+  auditLogger('business.employee.create'),
+  asyncHandler(employeeController.create),
+);
+router.get(
+  '/:id/employees',
+  requireAuth,
+  requireRole(UserRole.BUSINESS_OWNER),
+  asyncHandler(employeeController.list),
+);
 
 export default router;
