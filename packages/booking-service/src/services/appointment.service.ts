@@ -198,10 +198,13 @@ export async function createAppointment(
             appointmentId: appointment.id,
             businessSlug: business.slug,
             phone,
-            // Twilio Content Template vars (notifications_appointment_confirmation_template)
-            first_name: customer.name,
-            date: dateFormatted,
-            time: input.time,
+            // Twilio Content Template vars — Utility text (booking success, not "please confirm"):
+            // "שלום {{1}}, התור שלך ל{{2}} ב{{3}} בתאריך {{4}} ובשעה {{5}} נקבע בהצלחה!"
+            '1': customer.name,
+            '2': service.name,
+            '3': business.name,
+            '4': dateFormatted,
+            '5': input.time,
           },
           scheduledAt: new Date().toISOString(),
         });
