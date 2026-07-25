@@ -29,7 +29,7 @@ All variables are set on the unified `torbook` service (Render) or `.env` locall
 | `TWILIO_ACCOUNT_SID` | no | Twilio account SID; empty enables WhatsApp log-only mode |
 | `TWILIO_AUTH_TOKEN` | no | Twilio auth token |
 | `TWILIO_WHATSAPP_FROM` | no | Sender, e.g. `whatsapp:+14155238886` (sandbox) or production number |
-| `TWILIO_WHATSAPP_CONTENT_SID` | no | Optional approved template SID (`HX…`) for messages outside the 24h window |
+| `TWILIO_WHATSAPP_CONTENT_SID` | no | Approved Content Template SID (`HX…`). When set, booking confirmations use template vars `first_name`, `date`, `time` |
 | `DB_SERVICE_URL` | auto | set by monolith on loopback |
 
 See [`.env.example`](../../.env.example) for local placeholders.

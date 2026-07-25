@@ -67,5 +67,11 @@ export async function sendBookingConfirmationWhatsApp(job: QueueJob): Promise<vo
     return;
   }
 
-  await sendWhatsAppMessage(phone, job.body, job.data);
+  // Only template placeholders — do not pass internal job fields to Twilio.
+  const contentVariables: Record<string, string> = {};
+  if (job.data.first_name) contentVariables.first_name = job.data.first_name;
+  if (job.data.date) contentVariables.date = job.data.date;
+  if (job.data.time) contentVariables.time = job.data.time;
+
+  await sendWhatsAppMessage(phone, job.body, contentVariables);
 }

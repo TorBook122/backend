@@ -198,6 +198,10 @@ export async function createAppointment(
             appointmentId: appointment.id,
             businessSlug: business.slug,
             phone,
+            // Twilio Content Template vars (notifications_appointment_confirmation_template)
+            first_name: customer.name,
+            date: dateFormatted,
+            time: input.time,
           },
           scheduledAt: new Date().toISOString(),
         });
