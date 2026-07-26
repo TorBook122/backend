@@ -30,6 +30,11 @@ All variables are set on the unified `torbook` service (Render) or `.env` locall
 | `TWILIO_AUTH_TOKEN` | no | Twilio auth token |
 | `TWILIO_WHATSAPP_FROM` | no | Sender, e.g. `whatsapp:+14155238886` (sandbox) or production number |
 | `TWILIO_WHATSAPP_CONTENT_SID` | no | Approved **Utility** Content Template SID (`HX…`) for booking success. Expected body: `שלום {{first_name}}, התור שלך ל{{service}} ב{{business}} בתאריך {{date}} ובשעה {{time}} נקבע בהצלחה!` (text only — no Confirm/Reschedule buttons) |
+| `TWILIO_WHATSAPP_CONTENT_SID_CLIENT_CANCEL_CUSTOMER` | no | On-time client cancel → customer. Body: `התור שלך ל{{service}} ב{{business}} בתאריך {{date}} ובשעה {{time}} בוטל בהצלחה.` |
+| `TWILIO_WHATSAPP_CONTENT_SID_CLIENT_CANCEL_OWNER` | no | On-time client cancel → business owner. Body: `{{customer}} ביטל תור לשירות {{service}} בתאריך {{date}} ובשעה {{time}}` |
+| `TWILIO_WHATSAPP_CONTENT_SID_LATE_CANCEL_CUSTOMER` | no | Late cancel request → customer. Body: `בקשה לביטול תור {{service}} בתאריך {{date}} ובשעה {{time}} נשלחה לבעל העסק {{business}}` |
+| `TWILIO_WHATSAPP_CONTENT_SID_BUSINESS_CANCEL_CUSTOMER` | no | Business cancel → customer. Body: `התור שלך ל{{service}} בעסק {{business}} בתאריך {{date}} ובשעה {{time}} בוטל על ידי בעל העסק. לפרטים התקשר {{business_phone}}.` |
+| `TWILIO_WHATSAPP_CONTENT_SID_NEW_COMMENT` | no | New public-page comment → business owner. Body: `התקבלה תגובה מ{{customer}} בדף העסק הציבורי שלך.` |
 | `DB_SERVICE_URL` | auto | set by monolith on loopback |
 
 See [`.env.example`](../../.env.example) for local placeholders.
@@ -49,6 +54,7 @@ Enqueue API only — worker has no HTTP.
 | `REMINDER` | Send appointment reminder push notification |
 | `CANCELLATION` | Send appointment cancellation push notification |
 | `BOOKING_CONFIRMATION` | Send WhatsApp booking confirmation to the customer |
+| `WHATSAPP` | Send a generic WhatsApp message (cancellations, comments, etc.). `data.phone` required; optional `data.template` maps to a Content SID env var, or pass `data.contentSid` directly. Without a SID, sends free-form `body` (log-only / sandbox). |
 
 ## Dependencies
 
@@ -64,7 +70,7 @@ Started with `pnpm dev:all` or `pnpm docker:up`. Set `AWS_SQS_QUEUE_URL` to empt
 
 - Enqueue logs jobs to stdout instead of sending to SQS
 - Worker does not start polling in log-only mode
-- **Due jobs** (`scheduledAt` ≈ now, e.g. `BOOKING_CONFIRMATION`) run **inline** on enqueue so WhatsApp still sends without real SQS
+- **Due jobs** (`scheduledAt` ≈ now, e.g. `BOOKING_CONFIRMATION`, `WHATSAPP`) run **inline** on enqueue so WhatsApp still sends without real SQS
 - Delayed jobs (e.g. future `REMINDER`) are logged and skipped until a real SQS queue is configured
 - WhatsApp delivery itself logs to stdout when `TWILIO_*` vars are unset (same pattern as FCM log-only)
 

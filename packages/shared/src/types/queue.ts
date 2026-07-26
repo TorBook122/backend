@@ -1,4 +1,4 @@
-export type QueueJobType = 'REMINDER' | 'CANCELLATION' | 'BOOKING_CONFIRMATION';
+export type QueueJobType = 'REMINDER' | 'CANCELLATION' | 'BOOKING_CONFIRMATION' | 'WHATSAPP';
 
 export type QueueJob = {
   type: QueueJobType;

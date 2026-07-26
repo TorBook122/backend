@@ -19,7 +19,8 @@ function isQueueJob(body: unknown): body is QueueJob {
   return (
     (job.type === 'REMINDER' ||
       job.type === 'CANCELLATION' ||
-      job.type === 'BOOKING_CONFIRMATION') &&
+      job.type === 'BOOKING_CONFIRMATION' ||
+      job.type === 'WHATSAPP') &&
     typeof job.userId === 'string' &&
     typeof job.title === 'string' &&
     typeof job.body === 'string' &&

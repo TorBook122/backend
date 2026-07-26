@@ -1,6 +1,9 @@
 import type { QueueJob } from '@torbook/shared';
 import { sendPushToUser } from './lib/notifications/index.js';
-import { sendBookingConfirmationWhatsApp } from './lib/notifications/whatsapp.js';
+import {
+  sendBookingConfirmationWhatsApp,
+  sendGenericWhatsApp,
+} from './lib/notifications/whatsapp.js';
 
 export async function handlePushNotification(job: QueueJob): Promise<void> {
   await sendPushToUser(job.userId, {
@@ -12,4 +15,8 @@ export async function handlePushNotification(job: QueueJob): Promise<void> {
 
 export async function handleBookingConfirmation(job: QueueJob): Promise<void> {
   await sendBookingConfirmationWhatsApp(job);
+}
+
+export async function handleWhatsApp(job: QueueJob): Promise<void> {
+  await sendGenericWhatsApp(job);
 }

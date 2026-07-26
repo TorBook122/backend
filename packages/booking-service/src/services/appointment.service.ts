@@ -8,6 +8,7 @@ import {
   addMinutes,
   parseJerusalemDateTime,
   toJerusalemDateString,
+  toJerusalemTimeString,
 } from '@torbook/shared';
 import type { AppointmentDto, BusinessAppointmentStats } from '@torbook/shared';
 import { sharedClient } from '../clients/shared.client.js';
@@ -87,6 +88,36 @@ async function toOwnerAppointmentDto(
 }
 
 const CANCELLED_STATUSES = ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_BUSINESS'] as const;
+
+function formatJerusalemDateDisplay(date: Date): string {
+  const [year, month, day] = toJerusalemDateString(date).split('-');
+  return `${day}.${month}.${year}`;
+}
+
+async function enqueueWhatsAppIfPhone(
+  phoneEnc: string | null | undefined,
+  userId: string,
+  title: string,
+  body: string,
+  data: Record<string, string>,
+): Promise<void> {
+  if (!phoneEnc) return;
+
+  try {
+    const phone = await sharedClient.decryptPii(phoneEnc);
+    await queueClient.enqueue({
+      type: 'WHATSAPP',
+      userId,
+      title,
+      body,
+      data: { ...data, phone },
+      scheduledAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[booking] failed to enqueue WHATSAPP', error);
+  }
+}
 
 export async function createAppointment(
   customerId: string,
@@ -231,7 +262,7 @@ export async function cancelAppointment(
     include: {
       business: true,
       service: { select: { name: true, durationMins: true } },
-      customer: { select: { name: true } },
+      customer: { select: { name: true, phoneEnc: true } },
     },
   });
 
@@ -281,7 +312,7 @@ export async function cancelAppointment(
     include: {
       business: { select: { name: true, slug: true } },
       service: { select: { name: true, durationMins: true } },
-      customer: { select: { name: true } },
+      customer: { select: { name: true, phoneEnc: true } },
     },
   });
 
@@ -313,6 +344,88 @@ export async function cancelAppointment(
       },
       scheduledAt: new Date().toISOString(),
     });
+  }
+
+  const dateFormatted = formatJerusalemDateDisplay(appointment.startsAt);
+  const timeFormatted = toJerusalemTimeString(appointment.startsAt);
+  const customerName = appointment.customer?.name ?? 'לקוח/ה';
+  const serviceName = appointment.service.name;
+  const businessName = appointment.business.name;
+
+  if (newStatus === AppointmentStatus.CANCELLED_BY_CLIENT) {
+    await enqueueWhatsAppIfPhone(
+      appointment.customer?.phoneEnc,
+      appointment.customerId,
+      'התור בוטל',
+      `התור שלך ל${serviceName} ב${businessName} בתאריך ${dateFormatted} ובשעה ${timeFormatted} בוטל בהצלחה.`,
+      {
+        type: 'WHATSAPP',
+        template: 'client_cancel_customer',
+        appointmentId: updated.id,
+        service: serviceName,
+        business: businessName,
+        date: dateFormatted,
+        time: timeFormatted,
+      },
+    );
+    await enqueueWhatsAppIfPhone(
+      appointment.business.phoneEnc,
+      appointment.business.ownerId,
+      'תור בוטל',
+      `${customerName} ביטל תור לשירות ${serviceName} בתאריך ${dateFormatted} ובשעה ${timeFormatted}`,
+      {
+        type: 'WHATSAPP',
+        template: 'client_cancel_owner',
+        appointmentId: updated.id,
+        customer: customerName,
+        service: serviceName,
+        date: dateFormatted,
+        time: timeFormatted,
+      },
+    );
+  } else if (newStatus === AppointmentStatus.PENDING_OWNER_DECISION) {
+    await enqueueWhatsAppIfPhone(
+      appointment.customer?.phoneEnc,
+      appointment.customerId,
+      'בקשת ביטול נשלחה',
+      `בקשה לביטול תור ${serviceName} בתאריך ${dateFormatted} ובשעה ${timeFormatted} נשלחה לבעל העסק ${businessName}`,
+      {
+        type: 'WHATSAPP',
+        template: 'late_cancel_customer',
+        appointmentId: updated.id,
+        service: serviceName,
+        business: businessName,
+        date: dateFormatted,
+        time: timeFormatted,
+      },
+    );
+  } else if (newStatus === AppointmentStatus.CANCELLED_BY_BUSINESS) {
+    let businessPhone = '';
+    if (appointment.business.phoneEnc) {
+      try {
+        businessPhone = await sharedClient.decryptPii(appointment.business.phoneEnc);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('[booking] failed to decrypt business phone for WHATSAPP', error);
+      }
+    }
+
+    await enqueueWhatsAppIfPhone(
+      appointment.customer?.phoneEnc,
+      appointment.customerId,
+      'התור בוטל',
+      `התור שלך ל${serviceName} בעסק ${businessName} בתאריך ${dateFormatted} ובשעה ${timeFormatted} בוטל על ידי בעל העסק. לפרטים התקשר ${businessPhone}.`,
+      {
+        type: 'WHATSAPP',
+        template: 'business_cancel_customer',
+        appointmentId: updated.id,
+        service: serviceName,
+        business: businessName,
+        date: dateFormatted,
+        time: timeFormatted,
+        business_phone: businessPhone,
+      },
+    );
   }
 
   return toAppointmentDto(updated);

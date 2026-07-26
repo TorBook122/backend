@@ -9,6 +9,8 @@ import {
   type CategoryRankingsDto,
 } from '@torbook/shared';
 import { dbClient, type DbBusiness } from '../clients/db.client.js';
+import { sharedClient } from '../clients/shared.client.js';
+import { queueClient } from '../lib/queue-client.js';
 import { AppError } from '../utils/app-error.js';
 import { assertNotAffiliatedBusiness } from '../utils/business-access.js';
 
@@ -111,7 +113,33 @@ export async function createComment(
 
   try {
     const sentiment = analyzeCommentSentiment(text);
-    return await dbClient.comments.create(userId, business.id, appointmentId, text, sentiment);
+    const comment = await dbClient.comments.create(userId, business.id, appointmentId, text, sentiment);
+
+    try {
+      const customer = await dbClient.users.findById(userId);
+      const customerName = customer?.name ?? 'לקוח/ה';
+      if (business.phoneEnc) {
+        const phone = await sharedClient.decryptPii(business.phoneEnc);
+        await queueClient.enqueue({
+          type: 'WHATSAPP',
+          userId: business.ownerId,
+          title: 'תגובה חדשה',
+          body: `התקבלה תגובה מ${customerName} בדף העסק הציבורי שלך.`,
+          data: {
+            type: 'WHATSAPP',
+            template: 'new_comment',
+            phone,
+            customer: customerName,
+          },
+          scheduledAt: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[engagement] failed to enqueue WHATSAPP for new comment', error);
+    }
+
+    return comment;
   } catch (err) {
     if (err instanceof AppError && err.statusCode === 403) {
       throw new AppError(

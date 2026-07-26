@@ -51,14 +51,19 @@ export async function enqueueJob(job: QueueJob): Promise<void> {
 }
 
 export async function processJob(job: QueueJob): Promise<void> {
+  const handlers = await import('./handlers.js');
+
   if (job.type === 'BOOKING_CONFIRMATION') {
-    const { handleBookingConfirmation } = await import('./handlers.js');
-    await handleBookingConfirmation(job);
+    await handlers.handleBookingConfirmation(job);
     return;
   }
 
-  const { handlePushNotification } = await import('./handlers.js');
-  await handlePushNotification(job);
+  if (job.type === 'WHATSAPP') {
+    await handlers.handleWhatsApp(job);
+    return;
+  }
+
+  await handlers.handlePushNotification(job);
 }
 
 export async function startWorker(): Promise<void> {

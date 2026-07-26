@@ -1,5 +1,31 @@
 import type { QueueJob } from '@torbook/shared';
 
+const WHATSAPP_TEMPLATE_ENV_KEYS: Record<string, string> = {
+  client_cancel_customer: 'TWILIO_WHATSAPP_CONTENT_SID_CLIENT_CANCEL_CUSTOMER',
+  client_cancel_owner: 'TWILIO_WHATSAPP_CONTENT_SID_CLIENT_CANCEL_OWNER',
+  late_cancel_customer: 'TWILIO_WHATSAPP_CONTENT_SID_LATE_CANCEL_CUSTOMER',
+  business_cancel_customer: 'TWILIO_WHATSAPP_CONTENT_SID_BUSINESS_CANCEL_CUSTOMER',
+  new_comment: 'TWILIO_WHATSAPP_CONTENT_SID_NEW_COMMENT',
+};
+
+const WHATSAPP_JOB_DATA_RESERVED_KEYS = new Set([
+  'phone',
+  'contentSid',
+  'template',
+  'type',
+  'appointmentId',
+  'businessSlug',
+]);
+
+function resolveContentSid(contentSid?: string, template?: string): string | undefined {
+  if (contentSid?.trim()) return contentSid.trim();
+  if (template?.trim()) {
+    const envKey = WHATSAPP_TEMPLATE_ENV_KEYS[template.trim()];
+    if (envKey) return process.env[envKey]?.trim() || undefined;
+  }
+  return undefined;
+}
+
 export function isWhatsAppLogOnlyMode(): boolean {
   return (
     !process.env.TWILIO_ACCOUNT_SID?.trim() ||
@@ -19,13 +45,14 @@ export async function sendWhatsAppMessage(
   toDigits: string,
   body: string,
   contentVariables?: Record<string, string>,
+  contentSid?: string,
 ): Promise<void> {
   const to = `whatsapp:${toWhatsAppE164(toDigits)}`;
   const from = process.env.TWILIO_WHATSAPP_FROM!.trim();
 
   if (isWhatsAppLogOnlyMode()) {
     // eslint-disable-next-line no-console
-    console.log('[WhatsApp log-only]', { to, body, contentVariables });
+    console.log('[WhatsApp log-only]', { to, body, contentVariables, contentSid });
     return;
   }
 
@@ -36,12 +63,12 @@ export async function sendWhatsAppMessage(
   );
 
   try {
-    const contentSid = process.env.TWILIO_WHATSAPP_CONTENT_SID?.trim();
-    if (contentSid) {
+    const sid = contentSid?.trim();
+    if (sid) {
       const message = await client.messages.create({
         from,
         to,
-        contentSid,
+        contentSid: sid,
         contentVariables: JSON.stringify(contentVariables ?? {}),
       });
       // eslint-disable-next-line no-console
@@ -74,5 +101,29 @@ export async function sendBookingConfirmationWhatsApp(job: QueueJob): Promise<vo
     if (value) contentVariables[key] = value;
   }
 
-  await sendWhatsAppMessage(phone, job.body, contentVariables);
+  await sendWhatsAppMessage(
+    phone,
+    job.body,
+    contentVariables,
+    process.env.TWILIO_WHATSAPP_CONTENT_SID?.trim(),
+  );
+}
+
+export async function sendGenericWhatsApp(job: QueueJob): Promise<void> {
+  const phone = job.data.phone;
+  if (!phone) {
+    // eslint-disable-next-line no-console
+    console.warn('[WhatsApp] missing phone in WHATSAPP job data');
+    return;
+  }
+
+  const contentSid = resolveContentSid(job.data.contentSid, job.data.template);
+  const contentVariables: Record<string, string> = {};
+  for (const [key, value] of Object.entries(job.data)) {
+    if (!WHATSAPP_JOB_DATA_RESERVED_KEYS.has(key) && value) {
+      contentVariables[key] = value;
+    }
+  }
+
+  await sendWhatsAppMessage(phone, job.body, contentVariables, contentSid);
 }
