@@ -67,9 +67,9 @@ export async function sendBookingConfirmationWhatsApp(job: QueueJob): Promise<vo
     return;
   }
 
-  // Template placeholders for booking-success Utility template ({{1}}…{{5}}).
+  // Named template placeholders for booking-success Utility template.
   const contentVariables: Record<string, string> = {};
-  for (const key of ['1', '2', '3', '4', '5'] as const) {
+  for (const key of ['first_name', 'service', 'business', 'date', 'time'] as const) {
     const value = job.data[key];
     if (value) contentVariables[key] = value;
   }
