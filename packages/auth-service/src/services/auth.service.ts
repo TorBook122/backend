@@ -359,12 +359,12 @@ export async function forgotPassword(input: ForgotPasswordBody): Promise<void> {
   const user = await prisma.user.findUnique({ where: { emailHash } });
 
   if (!user || user.deletedAt) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'לא נמצא משתמש עם אימייל זה');
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'האימייל אינו קיים במערכת');
   }
 
   const emailPlain = tryDecryptPii(user.emailEnc);
   if (!emailPlain) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'לא נמצא משתמש עם אימייל זה');
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'האימייל אינו קיים במערכת');
   }
 
   const code = generateResetCode();
@@ -405,7 +405,7 @@ export async function resetPassword(input: ResetPasswordBody): Promise<void> {
 
   const user = await prisma.user.findUnique({ where: { emailHash } });
   if (!user || user.deletedAt) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'לא נמצא משתמש עם אימייל זה');
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'האימייל אינו קיים במערכת');
   }
 
   const passwordHash = await hashPassword(input.password);
