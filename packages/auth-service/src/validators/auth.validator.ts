@@ -34,7 +34,25 @@ export const activateEmployeeSchema = z
     path: ['confirmPassword'],
   });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('אימייל לא תקין'),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    email: z.string().email('אימייל לא תקין'),
+    code: z.string().regex(/^\d{4}$/, 'קוד חייב להיות 4 ספרות'),
+    password: z.string().min(8, 'סיסמה חייבת להכיל לפחות 8 תווים'),
+    confirmPassword: z.string().min(8, 'סיסמה חייבת להכיל לפחות 8 תווים'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'הסיסמאות אינן תואמות',
+    path: ['confirmPassword'],
+  });
+
 export type RegisterBody = z.infer<typeof registerSchema>;
 export type LoginBody = z.infer<typeof loginSchema>;
 export type GoogleAuthBody = z.infer<typeof googleAuthSchema>;
 export type ActivateEmployeeBody = z.infer<typeof activateEmployeeSchema>;
+export type ForgotPasswordBody = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordBody = z.infer<typeof resetPasswordSchema>;

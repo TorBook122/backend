@@ -12,6 +12,8 @@ import {
 import {
   API_ERROR_CODES,
   AuthProvider,
+  PASSWORD_RESET_MAX_ATTEMPTS,
+  PASSWORD_RESET_TTL_SECONDS,
   REFRESH_COOKIE_NAME,
   encryptPii,
   tryDecryptPii,
@@ -26,7 +28,8 @@ import { getRedis } from '../lib/redis.js';
 import { AppError } from '../utils/app-error.js';
 import { crossSiteCookieOptions } from '../utils/cookie-options.js';
 import { verifyGoogleIdToken } from '../lib/google-auth.js';
-import type { ActivateEmployeeBody, LoginBody, RegisterBody, GoogleAuthBody } from '../validators/auth.validator.js';
+import { sendPasswordResetCode } from '../lib/email/resend.js';
+import type { ActivateEmployeeBody, ForgotPasswordBody, LoginBody, RegisterBody, GoogleAuthBody, ResetPasswordBody } from '../validators/auth.validator.js';
 
 function toAuthUser(user: {
   id: string;
@@ -273,6 +276,22 @@ function hashInviteToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
+function hashResetCode(code: string): string {
+  return createHash('sha256').update(code).digest('hex');
+}
+
+function generateResetCode(): string {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function pwdResetKey(emailHash: string): string {
+  return `pwd_reset:${emailHash}`;
+}
+
+function pwdResetAttemptsKey(emailHash: string): string {
+  return `pwd_reset_attempts:${emailHash}`;
+}
+
 async function findEmployeeByInviteToken(token: string) {
   const tokenHash = hashInviteToken(token);
   return prisma.employee.findFirst({
@@ -333,5 +352,68 @@ export async function activateEmployee(input: ActivateEmployeeBody, res: Respons
   });
 
   return issueAuthTokens(updatedUser, res);
+}
+
+export async function forgotPassword(input: ForgotPasswordBody): Promise<void> {
+  const emailHash = hashPii(normalizeEmail(input.email));
+  const user = await prisma.user.findUnique({ where: { emailHash } });
+
+  if (!user || user.deletedAt) {
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'לא נמצא משתמש עם אימייל זה');
+  }
+
+  const emailPlain = tryDecryptPii(user.emailEnc);
+  if (!emailPlain) {
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'לא נמצא משתמש עם אימייל זה');
+  }
+
+  const code = generateResetCode();
+  const codeHash = hashResetCode(code);
+  const redis = getRedis();
+
+  await redis.set(pwdResetKey(emailHash), codeHash, 'EX', PASSWORD_RESET_TTL_SECONDS);
+  await redis.del(pwdResetAttemptsKey(emailHash));
+
+  await sendPasswordResetCode(emailPlain, code);
+}
+
+export async function resetPassword(input: ResetPasswordBody): Promise<void> {
+  const emailHash = hashPii(normalizeEmail(input.email));
+  const redis = getRedis();
+  const storedHash = await redis.get(pwdResetKey(emailHash));
+
+  if (!storedHash) {
+    throw new AppError(400, API_ERROR_CODES.INVALID_RESET_CODE, 'קוד לא תקין או שפג תוקפו');
+  }
+
+  const inputHash = hashResetCode(input.code);
+  if (inputHash !== storedHash) {
+    const attempts = await redis.incr(pwdResetAttemptsKey(emailHash));
+    if (attempts === 1) {
+      await redis.expire(pwdResetAttemptsKey(emailHash), PASSWORD_RESET_TTL_SECONDS);
+    }
+    if (attempts >= PASSWORD_RESET_MAX_ATTEMPTS) {
+      await redis.del(pwdResetKey(emailHash), pwdResetAttemptsKey(emailHash));
+      throw new AppError(
+        400,
+        API_ERROR_CODES.INVALID_RESET_CODE,
+        'יותר מדי ניסיונות שגויים. בקשו קוד חדש.',
+      );
+    }
+    throw new AppError(400, API_ERROR_CODES.INVALID_RESET_CODE, 'קוד שגוי');
+  }
+
+  const user = await prisma.user.findUnique({ where: { emailHash } });
+  if (!user || user.deletedAt) {
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'לא נמצא משתמש עם אימייל זה');
+  }
+
+  const passwordHash = await hashPassword(input.password);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash },
+  });
+
+  await redis.del(pwdResetKey(emailHash), pwdResetAttemptsKey(emailHash));
 }
 

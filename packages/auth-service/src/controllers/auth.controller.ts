@@ -2,23 +2,29 @@ import type { Request, Response } from 'express';
 import { API_ERROR_CODES, REFRESH_COOKIE_NAME } from '@torbook/shared';
 import {
   clearLoginFailures,
+  recordForgotPasswordRequest,
   recordLoginFailure,
+  recordResetPasswordFailure,
 } from '../middleware/rate-limiter.js';
 import {
   activateEmployee,
+  forgotPassword,
   loginUser,
   logoutUser,
   googleAuthUser,
   refreshSession,
   registerUser,
+  resetPassword,
   validateEmployeeInvite,
 } from '../services/auth.service.js';
 import { AppError } from '../utils/app-error.js';
 import {
   activateEmployeeSchema,
+  forgotPasswordSchema,
   googleAuthSchema,
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
 } from '../validators/auth.validator.js';
 
 export async function register(req: Request, res: Response) {
@@ -97,4 +103,38 @@ export async function activateEmployeeAccount(req: Request, res: Response) {
   const tokens = await activateEmployee(parsed.data, res);
   (req as Request & { userId?: string }).userId = tokens.user.id;
   res.json({ success: true, data: tokens });
+}
+
+export async function forgotPasswordHandler(req: Request, res: Response) {
+  const parsed = forgotPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const message = parsed.error.errors[0]?.message ?? 'נתונים לא תקינים';
+    throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, message);
+  }
+
+  await recordForgotPasswordRequest(req);
+  await forgotPassword(parsed.data);
+  res.json({ success: true, data: { sent: true } });
+}
+
+export async function resetPasswordHandler(req: Request, res: Response) {
+  const parsed = resetPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const message = parsed.error.errors[0]?.message ?? 'נתונים לא תקינים';
+    throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, message);
+  }
+
+  try {
+    await resetPassword(parsed.data);
+    res.json({ success: true, data: { reset: true } });
+  } catch (error) {
+    if (
+      error instanceof AppError &&
+      error.statusCode === 400 &&
+      error.code === API_ERROR_CODES.INVALID_RESET_CODE
+    ) {
+      await recordResetPasswordFailure(req);
+    }
+    throw error;
+  }
 }

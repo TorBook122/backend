@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as authController from '../controllers/auth.controller.js';
 import { auditLogger } from '../middleware/audit-logger.js';
-import { loginRateLimiter } from '../middleware/rate-limiter.js';
+import { forgotPasswordRateLimiter, loginRateLimiter, resetPasswordRateLimiter } from '../middleware/rate-limiter.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
 const router = Router();
@@ -13,5 +13,17 @@ router.get('/employee-invite', asyncHandler(authController.employeeInvite));
 router.post('/activate-employee', auditLogger('auth.activate-employee'), asyncHandler(authController.activateEmployeeAccount));
 router.post('/refresh', auditLogger('auth.refresh'), asyncHandler(authController.refresh));
 router.post('/logout', auditLogger('auth.logout'), asyncHandler(authController.logout));
+router.post(
+  '/forgot-password',
+  forgotPasswordRateLimiter,
+  auditLogger('auth.forgot-password'),
+  asyncHandler(authController.forgotPasswordHandler),
+);
+router.post(
+  '/reset-password',
+  resetPasswordRateLimiter,
+  auditLogger('auth.reset-password'),
+  asyncHandler(authController.resetPasswordHandler),
+);
 
 export default router;

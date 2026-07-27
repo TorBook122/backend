@@ -37,3 +37,7 @@ services:
         sync: false
       - key: NOMINATIM_USER_AGENT
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
