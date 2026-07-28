@@ -30,11 +30,17 @@ All variables are set on the unified `torbook` service (Render) or `.env` locall
 | `TWILIO_AUTH_TOKEN` | no | Twilio auth token |
 | `TWILIO_WHATSAPP_FROM` | no | Sender, e.g. `whatsapp:+14155238886` (sandbox) or production number |
 | `TWILIO_WHATSAPP_CONTENT_SID` | no | Approved **Utility** Content Template SID (`HX…`) for booking success. Expected body: `שלום {{first_name}}, התור שלך ל{{service}} ב{{business}} בתאריך {{date}} ובשעה {{time}} נקבע בהצלחה!` (text only — no Confirm/Reschedule buttons) |
-| `TWILIO_WHATSAPP_CONTENT_SID_CLIENT_CANCEL_CUSTOMER` | no | On-time client cancel → customer. Body: `התור שלך ל{{service}} ב{{business}} בתאריך {{date}} ובשעה {{time}} בוטל בהצלחה.` |
-| `TWILIO_WHATSAPP_CONTENT_SID_CLIENT_CANCEL_OWNER` | no | On-time client cancel → business owner. Body: `{{customer}} ביטל תור לשירות {{service}} בתאריך {{date}} ובשעה {{time}}` |
-| `TWILIO_WHATSAPP_CONTENT_SID_LATE_CANCEL_CUSTOMER` | no | Late cancel request → customer. Body: `בקשה לביטול תור {{service}} בתאריך {{date}} ובשעה {{time}} נשלחה לבעל העסק {{business}}` |
+| `TWILIO_WHATSAPP_CONTENT_SID_APPOINTMENT_CONFIRM_TO_BUSINESS` | no | New booking → business owner. Meta template: `kvator_appointment_confirm_to_business`. Body: `שלום {{name}}, {{clientName}} קבע/ה תור חדש אצלך דרך -Kvator לשירות {{service}}, בתאריך {{date}} בשעה {{time}}. לפרטים נוספים היכנס/י לאפליקציה.` |
+| `TWILIO_WHATSAPP_CONTENT_SID_CLIENT_CANCEL_CUSTOMER` | no | On-time client cancel → customer. Meta template: `kvator_appointment_canclled_by_user_msg_to_user`. Body: `שלום {{name}}, ביטול תור לשירות {{service}} ב{{bussinesName}} בתאריך {{date}} ובשעה {{time}} בוטל בהצלחה!` |
+| `TWILIO_WHATSAPP_CONTENT_SID_CLIENT_CANCEL_BUSINESS` | no | On-time client cancel → business owner. Meta template: `kvator_appointment_canclled_by_user_msg_to_business`. Body: `שלום {{name}}, {{clientName}} ביטל את התור שלו ל{{service}} בתאריך {{date}} ובשעה {{time}}. לפרטים נוספים היכנס/י לאפליקציה.` |
+| `TWILIO_WHATSAPP_CONTENT_SID_CLIENT_CANCEL_OWNER` | no | Legacy on-time client cancel → business owner. Body: `{{customer}} ביטל תור לשירות {{service}} בתאריך {{date}} ובשעה {{time}}` |
+| `TWILIO_WHATSAPP_CONTENT_SID_LATE_CANCEL_CUSTOMER` | no | Late cancel request → customer. Meta template: `kvator_late_cancel_request_to_user`. Body: `שלום {{name}}, בקשתך לביטול תור ל{{service}} ב{{business}} בתאריך {{date}} בשעה {{time}} נשלחה לבעל העסק לאישור. נעדכן אותך כשתתקבל החלטה. לפרטים נוספים היכנס/י לאפליקציה.` |
+| `TWILIO_WHATSAPP_CONTENT_SID_LATE_CANCEL_BUSINESS` | no | Late cancel request → business owner. Meta template: `kvator_late_cancel_request_to_business`. Body: `שלום {{name}}, {{clientName}} ביקש/ה לבטל תור ל{{service}} בתאריך {{date}} בשעה {{time}}. אנא אשר/י או דחה/י את הבקשה באפליקציה. לפרטים נוספים היכנס/י לאפליקציה.` |
+| `TWILIO_WHATSAPP_CONTENT_SID_LATE_CANCEL_APPROVED_CUSTOMER` | no | Late cancel approved → customer. Meta template: `kvator_late_cancel_approved_to_user`. Body: `שלום {{name}}, בקשתך לביטול תור ל{{service}} ב{{business}} בתאריך {{date}} בשעה {{time}} אושרה על ידי בעל העסק. התור בוטל בהצלחה. לפרטים נוספים היכנס/י לאפליקציה.` |
+| `TWILIO_WHATSAPP_CONTENT_SID_LATE_CANCEL_REJECTED_CUSTOMER` | no | Late cancel rejected → customer. Meta template: `kvator_late_cancel_rejected_to_user`. Body: `שלום {{name}}, בקשתך לביטול תור ל{{service}} ב{{business}} בתאריך {{date}} בשעה {{time}} נדחתה על ידי בעל העסק. התור נשאר בתוקף. לפרטים נוספים היכנס/י לאפליקציה.` |
 | `TWILIO_WHATSAPP_CONTENT_SID_BUSINESS_CANCEL_CUSTOMER` | no | Business cancel → customer. Body: `התור שלך ל{{service}} בעסק {{business}} בתאריך {{date}} ובשעה {{time}} בוטל על ידי בעל העסק. לפרטים התקשר {{business_phone}}.` |
 | `TWILIO_WHATSAPP_CONTENT_SID_NEW_COMMENT` | no | New public-page comment → business owner. Body: `התקבלה תגובה מ{{customer}} בדף העסק הציבורי שלך.` |
+| `TWILIO_WHATSAPP_CONTENT_SID_PASSWORD_RESET` | no | Password reset OTP → user phone. Body: `שלום {{name}}, קוד האימות לשינוי הסיסמה הינו {{code}}. המשך יום טוב, Kvator!` |
 | `DB_SERVICE_URL` | auto | set by monolith on loopback |
 
 See [`.env.example`](../../.env.example) for local placeholders.

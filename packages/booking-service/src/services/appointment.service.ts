@@ -210,20 +210,30 @@ export async function createAppointment(
       });
     }
 
-    const customer = await prisma.user.findUnique({
-      where: { id: customerId },
-      select: { phoneEnc: true, name: true },
-    });
+    const [customer, owner] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: customerId },
+        select: { phoneEnc: true, name: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: business.ownerId },
+        select: { name: true },
+      }),
+    ]);
+
+    const [year, month, day] = input.date.split('-');
+    const dateFormatted = `${day}.${month}.${year}`;
+    const customerName = customer?.name ?? 'לקוח/ה';
+    const ownerName = owner?.name ?? 'בעל/ת העסק';
+
     if (customer?.phoneEnc) {
       try {
         const phone = await sharedClient.decryptPii(customer.phoneEnc);
-        const [year, month, day] = input.date.split('-');
-        const dateFormatted = `${day}.${month}.${year}`;
         await queueClient.enqueue({
           type: 'BOOKING_CONFIRMATION',
           userId: customerId,
           title: 'התור נקבע בהצלחה',
-          body: `שלום ${customer.name}, התור שלך ל${service.name} ב${business.name} בתאריך ${dateFormatted} ובשעה ${input.time} נקבע בהצלחה!`,
+          body: `שלום ${customerName}, התור שלך ל${service.name} ב${business.name} בתאריך ${dateFormatted} ובשעה ${input.time} נקבע בהצלחה!`,
           data: {
             type: 'BOOKING_CONFIRMATION',
             appointmentId: appointment.id,
@@ -231,7 +241,7 @@ export async function createAppointment(
             phone,
             // Twilio Content Template vars — Utility text (booking success):
             // שלום {{first_name}}, התור שלך ל{{service}} ב{{business}} בתאריך {{date}} ובשעה {{time}} נקבע בהצלחה!
-            first_name: customer.name,
+            first_name: customerName,
             service: service.name,
             business: business.name,
             date: dateFormatted,
@@ -244,6 +254,23 @@ export async function createAppointment(
         console.error('[booking] failed to enqueue BOOKING_CONFIRMATION', error);
       }
     }
+
+    await enqueueWhatsAppIfPhone(
+      business.phoneEnc,
+      business.ownerId,
+      'תור חדש נקבע',
+      `שלום ${ownerName},\n${customerName} קבע/ה תור חדש אצלך דרך -Kvator לשירות ${service.name}, בתאריך ${dateFormatted} בשעה ${input.time}.\nלפרטים נוספים היכנס/י לאפליקציה.`,
+      {
+        type: 'WHATSAPP',
+        template: 'appointment_confirm_to_business',
+        appointmentId: appointment.id,
+        name: ownerName,
+        clientName: customerName,
+        service: service.name,
+        date: dateFormatted,
+        time: input.time,
+      },
+    );
 
     return toAppointmentDto(appointment);
   } catch (error) {
@@ -353,15 +380,61 @@ export async function cancelAppointment(
   const businessName = appointment.business.name;
 
   if (newStatus === AppointmentStatus.CANCELLED_BY_CLIENT) {
+    const owner = await prisma.user.findUnique({
+      where: { id: appointment.business.ownerId },
+      select: { name: true },
+    });
+    const ownerName = owner?.name ?? 'בעל/ת העסק';
+
     await enqueueWhatsAppIfPhone(
       appointment.customer?.phoneEnc,
       appointment.customerId,
       'התור בוטל',
-      `התור שלך ל${serviceName} ב${businessName} בתאריך ${dateFormatted} ובשעה ${timeFormatted} בוטל בהצלחה.`,
+      `שלום ${customerName},\nביטול תור לשירות ${serviceName} ב${businessName} בתאריך ${dateFormatted} ובשעה ${timeFormatted} בוטל בהצלחה!`,
       {
         type: 'WHATSAPP',
         template: 'client_cancel_customer',
         appointmentId: updated.id,
+        name: customerName,
+        service: serviceName,
+        bussinesName: businessName,
+        date: dateFormatted,
+        time: timeFormatted,
+      },
+    );
+    await enqueueWhatsAppIfPhone(
+      appointment.business.phoneEnc,
+      appointment.business.ownerId,
+      'תור בוטל',
+      `שלום ${ownerName},\n${customerName} ביטל את התור שלו ל${serviceName} בתאריך ${dateFormatted} ובשעה ${timeFormatted}\nלפרטים נוספים היכנס/י לאפליקציה.`,
+      {
+        type: 'WHATSAPP',
+        template: 'client_cancel_business',
+        appointmentId: updated.id,
+        name: ownerName,
+        clientName: customerName,
+        service: serviceName,
+        date: dateFormatted,
+        time: timeFormatted,
+      },
+    );
+  } else if (newStatus === AppointmentStatus.PENDING_OWNER_DECISION) {
+    const owner = await prisma.user.findUnique({
+      where: { id: appointment.business.ownerId },
+      select: { name: true },
+    });
+    const ownerName = owner?.name ?? 'בעל/ת העסק';
+
+    await enqueueWhatsAppIfPhone(
+      appointment.customer?.phoneEnc,
+      appointment.customerId,
+      'בקשת ביטול נשלחה',
+      `שלום ${customerName},\nבקשתך לביטול תור ל${serviceName} ב${businessName} בתאריך ${dateFormatted} בשעה ${timeFormatted} נשלחה לבעל העסק לאישור.\nנעדכן אותך כשתתקבל החלטה.\nלפרטים נוספים היכנס/י לאפליקציה.`,
+      {
+        type: 'WHATSAPP',
+        template: 'late_cancel_customer',
+        appointmentId: updated.id,
+        name: customerName,
         service: serviceName,
         business: businessName,
         date: dateFormatted,
@@ -371,30 +444,15 @@ export async function cancelAppointment(
     await enqueueWhatsAppIfPhone(
       appointment.business.phoneEnc,
       appointment.business.ownerId,
-      'תור בוטל',
-      `${customerName} ביטל תור לשירות ${serviceName} בתאריך ${dateFormatted} ובשעה ${timeFormatted}`,
+      'בקשת ביטול מאוחר',
+      `שלום ${ownerName},\n${customerName} ביקש/ה לבטל תור ל${serviceName} בתאריך ${dateFormatted} בשעה ${timeFormatted}.\nאנא אשר/י או דחה/י את הבקשה באפליקציה.\nלפרטים נוספים היכנס/י לאפליקציה.`,
       {
         type: 'WHATSAPP',
-        template: 'client_cancel_owner',
+        template: 'late_cancel_business',
         appointmentId: updated.id,
-        customer: customerName,
+        name: ownerName,
+        clientName: customerName,
         service: serviceName,
-        date: dateFormatted,
-        time: timeFormatted,
-      },
-    );
-  } else if (newStatus === AppointmentStatus.PENDING_OWNER_DECISION) {
-    await enqueueWhatsAppIfPhone(
-      appointment.customer?.phoneEnc,
-      appointment.customerId,
-      'בקשת ביטול נשלחה',
-      `בקשה לביטול תור ${serviceName} בתאריך ${dateFormatted} ובשעה ${timeFormatted} נשלחה לבעל העסק ${businessName}`,
-      {
-        type: 'WHATSAPP',
-        template: 'late_cancel_customer',
-        appointmentId: updated.id,
-        service: serviceName,
-        business: businessName,
         date: dateFormatted,
         time: timeFormatted,
       },
@@ -424,6 +482,110 @@ export async function cancelAppointment(
         date: dateFormatted,
         time: timeFormatted,
         business_phone: businessPhone,
+      },
+    );
+  }
+
+  return toAppointmentDto(updated);
+}
+
+export async function resolveLateCancellation(
+  appointmentId: string,
+  userId: string,
+  userRole: string,
+  approved: boolean,
+): Promise<AppointmentDto> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      business: true,
+      service: { select: { name: true, durationMins: true } },
+      customer: { select: { name: true, phoneEnc: true } },
+    },
+  });
+
+  if (!appointment) {
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'תור לא נמצא');
+  }
+
+  if (appointment.status !== AppointmentStatus.PENDING_OWNER_DECISION) {
+    throw new AppError(409, API_ERROR_CODES.CONFLICT, 'אין בקשת ביטול מאוחרת לתור זה');
+  }
+
+  const isOwner = appointment.business.ownerId === userId;
+  const canDecide =
+    isOwner ||
+    (userRole === UserRole.EMPLOYEE &&
+      (await hasBusinessPermission(
+        userId,
+        userRole,
+        appointment.businessId,
+        EmployeePermission.CANCEL_APPOINTMENTS,
+      )));
+
+  if (!canDecide) {
+    throw new AppError(403, API_ERROR_CODES.PERMISSION_DENIED, 'אין לך הרשאה לבצע את זה');
+  }
+
+  if (appointment.startsAt <= new Date()) {
+    throw new AppError(400, API_ERROR_CODES.PAST_APPOINTMENT, 'לא ניתן לטפל בתור שעבר');
+  }
+
+  const newStatus = approved
+    ? AppointmentStatus.CANCELLED_BY_CLIENT
+    : AppointmentStatus.CONFIRMED;
+
+  const updated = await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { status: newStatus },
+    include: {
+      business: { select: { name: true, slug: true } },
+      service: { select: { name: true, durationMins: true } },
+      customer: { select: { name: true, phoneEnc: true } },
+    },
+  });
+
+  const dateStr = toJerusalemDateString(appointment.startsAt);
+  await invalidateSlotCache(appointment.businessId, dateStr, appointment.serviceId);
+
+  const dateFormatted = formatJerusalemDateDisplay(appointment.startsAt);
+  const timeFormatted = toJerusalemTimeString(appointment.startsAt);
+  const customerName = appointment.customer?.name ?? 'לקוח/ה';
+  const serviceName = appointment.service.name;
+  const businessName = appointment.business.name;
+
+  if (approved) {
+    await enqueueWhatsAppIfPhone(
+      appointment.customer?.phoneEnc,
+      appointment.customerId,
+      'בקשת הביטול אושרה',
+      `שלום ${customerName},\nבקשתך לביטול תור ל${serviceName} ב${businessName} בתאריך ${dateFormatted} בשעה ${timeFormatted} אושרה על ידי בעל העסק.\nהתור בוטל בהצלחה.\nלפרטים נוספים היכנס/י לאפליקציה.`,
+      {
+        type: 'WHATSAPP',
+        template: 'late_cancel_approved_customer',
+        appointmentId: updated.id,
+        name: customerName,
+        service: serviceName,
+        business: businessName,
+        date: dateFormatted,
+        time: timeFormatted,
+      },
+    );
+  } else {
+    await enqueueWhatsAppIfPhone(
+      appointment.customer?.phoneEnc,
+      appointment.customerId,
+      'בקשת הביטול נדחתה',
+      `שלום ${customerName},\nבקשתך לביטול תור ל${serviceName} ב${businessName} בתאריך ${dateFormatted} בשעה ${timeFormatted} נדחתה על ידי בעל העסק.\nהתור נשאר בתוקף.\nלפרטים נוספים היכנס/י לאפליקציה.`,
+      {
+        type: 'WHATSAPP',
+        template: 'late_cancel_rejected_customer',
+        appointmentId: updated.id,
+        name: customerName,
+        service: serviceName,
+        business: businessName,
+        date: dateFormatted,
+        time: timeFormatted,
       },
     );
   }

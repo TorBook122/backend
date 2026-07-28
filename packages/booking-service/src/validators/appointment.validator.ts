@@ -15,3 +15,9 @@ export const createAppointmentSchema = z
   );
 
 export type CreateAppointmentBody = z.infer<typeof createAppointmentSchema>;
+
+export const lateCancelDecisionSchema = z.object({
+  approved: z.boolean(),
+});
+
+export type LateCancelDecisionBody = z.infer<typeof lateCancelDecisionSchema>;

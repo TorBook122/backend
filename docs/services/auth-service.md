@@ -23,11 +23,12 @@ Runs as an **internal HTTP module** on loopback inside the unified process (port
 | `JWT_REFRESH_SECRET` | yes | `openssl rand -hex 32` |
 | `DB_SERVICE_URL` | yes | loopback → `@torbook/db` |
 | `SHARED_SERVICE_URL` | yes | loopback → `@torbook/shared` |
+| `RESEND_API_KEY` | no | password-reset email; empty = log-only |
 | `PORT` | no | defaults to 3002 |
 
 ## Dependencies
 
-**Calls:** `@torbook/db`, `@torbook/shared`, Redis
+**Calls:** `@torbook/db`, `@torbook/shared`, Redis, Resend (password-reset email)
 
 **Called by:** `@torbook/gateway` (proxy)
 

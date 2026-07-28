@@ -10,10 +10,11 @@ import {
   getBusinessAppointments,
   getCustomerAppointments,
   getTimeBlocks,
+  resolveLateCancellation,
 } from '../services/appointment.service.js';
 import { AppError } from '../utils/app-error.js';
 import { param } from '../utils/param.js';
-import { createAppointmentSchema } from '../validators/appointment.validator.js';
+import { createAppointmentSchema, lateCancelDecisionSchema } from '../validators/appointment.validator.js';
 import { timeBlockSchema } from '../validators/business.validator.js';
 
 function getUserId(req: Request): string {
@@ -35,6 +36,20 @@ export async function book(req: Request, res: Response) {
 
 export async function cancel(req: Request, res: Response) {
   const appointment = await cancelAppointment(param(req.params.id), getUserId(req), getUserRole(req));
+  res.json({ success: true, data: appointment });
+}
+
+export async function decideLateCancel(req: Request, res: Response) {
+  const parsed = lateCancelDecisionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, parsed.error.errors[0]?.message ?? 'נתונים לא תקינים');
+  }
+  const appointment = await resolveLateCancellation(
+    param(req.params.id),
+    getUserId(req),
+    getUserRole(req),
+    parsed.data.approved,
+  );
   res.json({ success: true, data: appointment });
 }
 

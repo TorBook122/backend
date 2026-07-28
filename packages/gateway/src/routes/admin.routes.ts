@@ -58,6 +58,7 @@ const API_ROUTES = [
     routes: [
       'POST /api/v1/appointments/:slug/book',
       'PATCH /api/v1/appointments/:id/cancel',
+      'PATCH /api/v1/appointments/:id/late-cancel-decision',
       'GET /api/v1/appointments/me/upcoming',
       'GET /api/v1/appointments/business/:id/stats',
       'GET /api/v1/appointments/business/:id',

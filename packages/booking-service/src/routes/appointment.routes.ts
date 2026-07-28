@@ -19,6 +19,13 @@ router.patch(
   auditLogger('appointment.cancel'),
   asyncHandler(appointmentController.cancel),
 );
+router.patch(
+  '/:id/late-cancel-decision',
+  requireAuth,
+  requireRole(UserRole.BUSINESS_OWNER, UserRole.EMPLOYEE),
+  auditLogger('appointment.late_cancel_decision'),
+  asyncHandler(appointmentController.decideLateCancel),
+);
 router.get('/me/upcoming', requireAuth, asyncHandler(appointmentController.myAppointments));
 
 router.get(

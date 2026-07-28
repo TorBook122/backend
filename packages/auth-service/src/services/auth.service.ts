@@ -284,12 +284,12 @@ function generateResetCode(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
-function pwdResetKey(emailHash: string): string {
-  return `pwd_reset:${emailHash}`;
+function pwdResetKey(lookupHash: string): string {
+  return `pwd_reset:${lookupHash}`;
 }
 
-function pwdResetAttemptsKey(emailHash: string): string {
-  return `pwd_reset_attempts:${emailHash}`;
+function pwdResetAttemptsKey(lookupHash: string): string {
+  return `pwd_reset_attempts:${lookupHash}`;
 }
 
 async function findEmployeeByInviteToken(token: string) {
