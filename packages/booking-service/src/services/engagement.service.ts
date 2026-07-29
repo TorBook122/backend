@@ -116,20 +116,20 @@ export async function createComment(
     const comment = await dbClient.comments.create(userId, business.id, appointmentId, text, sentiment);
 
     try {
-      const customer = await dbClient.users.findById(userId);
-      const customerName = customer?.name ?? 'לקוח/ה';
+      const owner = await dbClient.users.findById(business.ownerId);
+      const ownerName = owner?.name ?? 'בעל/ת העסק';
       if (business.phoneEnc) {
         const phone = await sharedClient.decryptPii(business.phoneEnc);
         await queueClient.enqueue({
           type: 'WHATSAPP',
           userId: business.ownerId,
           title: 'תגובה חדשה',
-          body: `התקבלה תגובה מ${customerName} בדף העסק הציבורי שלך.`,
+          body: `שלום ${ownerName},\nהתקבלה תגובה חדשה בדף העסק הציבורי שלך.\nהיכנס https://kvator.co.il כדי לצפות בה.`,
           data: {
             type: 'WHATSAPP',
             template: 'new_comment',
             phone,
-            customer: customerName,
+            name: ownerName,
           },
           scheduledAt: new Date().toISOString(),
         });
