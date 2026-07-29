@@ -1,3 +1,4 @@
+import { BUSINESS_CATEGORIES } from '@torbook/shared';
 import { z } from 'zod';
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -34,9 +35,16 @@ const socialUrlSchema = z
   )
   .transform((val) => (val === '' ? null : val));
 
+const categorySchema = z
+  .string()
+  .min(1, 'יש לבחור קטגוריה')
+  .refine((val) => (BUSINESS_CATEGORIES as readonly string[]).includes(val), {
+    message: 'קטגוריה לא תקינה',
+  });
+
 export const createBusinessSchema = z.object({
   name: z.string().min(2, 'שם העסק קצר מדי').max(100),
-  category: z.string().max(50).optional(),
+  category: categorySchema,
   address: z.string().min(1, 'כתובת חובה').max(200),
   phone: z.string().min(9, 'מספר טלפון לא תקין'),
   instagramUrl: socialUrlSchema,
@@ -47,7 +55,7 @@ export const createBusinessSchema = z.object({
 
 export const updateBusinessSchema = z.object({
   name: z.string().min(2).max(100).optional(),
-  category: z.string().max(50).optional(),
+  category: categorySchema.optional(),
   notes: z.string().max(500).nullable().optional(),
   address: z.string().max(200).nullable().optional(),
   instagramUrl: socialUrlSchema,
@@ -76,6 +84,8 @@ export const availabilityDaySchema = z.object({
 
 export const updateAvailabilitySchema = z.object({
   days: z.array(availabilityDaySchema).length(7),
+}).refine((value) => value.days.some((day) => day.isActive), {
+  message: 'יש להפעיל לפחות יום אחד',
 });
 
 export const breakBlockSchema = z.object({

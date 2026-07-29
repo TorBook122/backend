@@ -12,6 +12,7 @@ import type {
   UpdateServiceBody,
 } from '../validators/business.validator.js';
 import { resolveBusinessCoordinates } from './nominatim.service.js';
+import { assertBusinessOnboardingComplete } from '../utils/onboarding-validation.js';
 
 function slugify(name: string): string {
   const base = name
@@ -406,5 +407,15 @@ export async function completeOnboarding(userId: string): Promise<void> {
   if (!user || user.role !== UserRole.BUSINESS_OWNER) {
     throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'רק בעלי עסק יכולים להשלים הגדרה');
   }
+
+  const business = await dbClient.businesses.findByOwnerId(userId);
+  if (!business) {
+    throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, 'יש להשלים את פרטי העסק');
+  }
+
+  const fullBusiness = await dbClient.businesses.findById(business.id, 'full');
+  const phone = await sharedClient.decryptPii(fullBusiness.phoneEnc);
+  assertBusinessOnboardingComplete(fullBusiness, phone);
+
   await dbClient.users.completeOnboarding(userId);
 }
