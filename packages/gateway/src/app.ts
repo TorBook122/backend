@@ -68,6 +68,7 @@ export function createApp(): Express {
   app.use('/api/v1/employees', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/employees'));
   app.use('/api/v1/employee-roles', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/employee-roles'));
   app.use('/api/v1/appointments', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/appointments'));
+  app.use('/api/v1/support', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/support'));
 
   app.use(errorHandler);
 

@@ -73,6 +73,7 @@ model User {
   businessComments BusinessComment[]
   fcmTokens        FcmToken[]
   auditLogs        AuditLog[]
+  supportRequests  SupportRequest[]
 
   @@index([role])
 }
@@ -299,4 +300,16 @@ model Announcement {
   updatedAt   DateTime @updatedAt
 
   @@index([isActive, createdAt])
+}
+
+model SupportRequest {
+  id        String   @id @default(cuid())
+  fullName  String
+  email     String
+  message   String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }

@@ -118,6 +118,15 @@ export type AnnouncementDto = {
   createdAt: string;
 };
 
+export type SupportRequestDto = {
+  id: string;
+  fullName: string;
+  email: string;
+  message: string;
+  userId: string | null;
+  createdAt: string;
+};
+
 export type BusinessListItem = {
   id: string;
   name: string;

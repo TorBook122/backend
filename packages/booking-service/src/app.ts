@@ -6,6 +6,7 @@ import employeeRoutes from './routes/employee.routes.js';
 import employeeRoleRoutes from './routes/employee-role.routes.js';
 import internalRoutes from './routes/internal.routes.js';
 import serviceRoutes from './routes/service.routes.js';
+import supportRoutes from './routes/support.routes.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { sanitize } from './middleware/sanitize.js';
 
@@ -26,6 +27,7 @@ export function createApp(): Express {
   app.use('/api/v1/employees', employeeRoutes);
   app.use('/api/v1/employee-roles', employeeRoleRoutes);
   app.use('/api/v1/appointments', appointmentRoutes);
+  app.use('/api/v1/support', supportRoutes);
 
   app.use(errorHandler);
 

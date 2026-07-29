@@ -95,6 +95,10 @@ const API_ROUTES = [
     group: 'Announcements',
     routes: ['GET /api/v1/announcements/active'],
   },
+  {
+    group: 'Support',
+    routes: ['POST /api/v1/support'],
+  },
 ];
 
 function getAdminCredentials(): { username: string; password: string } {
@@ -197,10 +201,20 @@ type AdminAnnouncement = {
   createdAt: string;
 };
 
+type AdminSupportRequest = {
+  id: string;
+  fullName: string;
+  email: string;
+  message: string;
+  userId: string | null;
+  createdAt: string;
+};
+
 async function fetchAdminData(): Promise<{
   businesses: AdminBusiness[];
   users: AdminUser[];
   announcements: AdminAnnouncement[];
+  supportRequests: AdminSupportRequest[];
 }> {
   const internalSecret = process.env.INTERNAL_SERVICE_SECRET;
   const authServiceUrl = process.env.AUTH_SERVICE_URL;
@@ -212,24 +226,27 @@ async function fetchAdminData(): Promise<{
 
   const headers = { 'X-Internal-Secret': internalSecret };
 
-  const [businessesRes, usersRes, announcementsRes] = await Promise.all([
+  const [businessesRes, usersRes, announcementsRes, supportRequestsRes] = await Promise.all([
     fetch(`${bookingServiceUrl}/internal/v1/admin/businesses`, { headers }),
     fetch(`${authServiceUrl}/internal/v1/admin/users`, { headers }),
     fetch(`${bookingServiceUrl}/internal/v1/admin/announcements`, { headers }),
+    fetch(`${bookingServiceUrl}/internal/v1/admin/support-requests`, { headers }),
   ]);
 
-  if (!businessesRes.ok || !usersRes.ok || !announcementsRes.ok) {
+  if (!businessesRes.ok || !usersRes.ok || !announcementsRes.ok || !supportRequestsRes.ok) {
     throw new Error('Failed to fetch admin dashboard data from internal services');
   }
 
   const businessesBody = (await businessesRes.json()) as { data: AdminBusiness[] };
   const usersBody = (await usersRes.json()) as { data: AdminUser[] };
   const announcementsBody = (await announcementsRes.json()) as { data: AdminAnnouncement[] };
+  const supportRequestsBody = (await supportRequestsRes.json()) as { data: AdminSupportRequest[] };
 
   return {
     businesses: businessesBody.data,
     users: usersBody.data,
     announcements: announcementsBody.data,
+    supportRequests: supportRequestsBody.data,
   };
 }
 
@@ -337,6 +354,11 @@ function baseStyles(): string {
     }
     th { background: #fafafa; font-weight: 600; }
     tr:last-child td { border-bottom: none; }
+    .message-cell {
+      max-width: 28rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
     details {
       background: #fff;
       border: 1px solid #e4e4e7;
@@ -383,6 +405,7 @@ function renderDashboardPage(
   businesses: AdminBusiness[],
   users: AdminUser[],
   announcements: AdminAnnouncement[],
+  supportRequests: AdminSupportRequest[],
   notice?: string,
 ): string {
   const rows = businesses
@@ -438,6 +461,18 @@ function renderDashboardPage(
     )
     .join('');
 
+  const supportRequestRows = supportRequests
+    .map(
+      (item) => `<tr>
+        <td>${escapeHtml(item.fullName)}</td>
+        <td dir="ltr">${escapeHtml(item.email)}</td>
+        <td class="message-cell">${escapeHtml(item.message)}</td>
+        <td>${escapeHtml(item.userId ?? '—')}</td>
+        <td>${escapeHtml(formatDate(item.createdAt))}</td>
+      </tr>`,
+    )
+    .join('');
+
   const noticeBlock = notice
     ? `<div style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:6px;padding:0.75rem;margin-bottom:1rem;">${escapeHtml(notice)}</div>`
     : '';
@@ -461,7 +496,7 @@ function renderDashboardPage(
   <div class="header">
     <div>
       <h1 style="margin:0">KvaTor Admin</h1>
-      <p class="muted">${businesses.length} business${businesses.length === 1 ? '' : 'es'} · ${users.length} משתמש${users.length === 1 ? '' : 'ים'}</p>
+      <p class="muted">${businesses.length} business${businesses.length === 1 ? '' : 'es'} · ${users.length} משתמש${users.length === 1 ? '' : 'ים'} · ${supportRequests.length} פני${supportRequests.length === 1 ? 'ה' : 'ויות'} תמיכה</p>
     </div>
     <form method="POST" action="/admin/logout">
       <button type="submit">התנתקות</button>
@@ -469,6 +504,21 @@ function renderDashboardPage(
   </div>
 
   ${noticeBlock}
+
+  <h2>פניות תמיכה</h2>
+  <p class="muted">פניות שנשלחו מדף התמיכה באפליקציה.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>שם</th>
+        <th>אימייל</th>
+        <th>הודעה</th>
+        <th>User ID</th>
+        <th>תאריך</th>
+      </tr>
+    </thead>
+    <tbody>${supportRequestRows || '<tr><td colspan="5">אין פניות תמיכה עדיין.</td></tr>'}</tbody>
+  </table>
 
   <h2>לוח מודעות — הודעות למערכת</h2>
   <p class="muted">הודעות פעילות מוצגות בלוח הבקרה של בעלי העסקים.</p>
@@ -578,10 +628,10 @@ router.get(
       return;
     }
 
-    const { businesses, users, announcements } = await fetchAdminData();
+    const { businesses, users, announcements, supportRequests } = await fetchAdminData();
     const notice = typeof req.query.notice === 'string' ? req.query.notice : undefined;
 
-    res.type('html').send(renderDashboardPage(businesses, users, announcements, notice));
+    res.type('html').send(renderDashboardPage(businesses, users, announcements, supportRequests, notice));
   }),
 );
 

@@ -6,6 +6,7 @@ import {
   listAllAnnouncements,
   setAnnouncementActive,
 } from '../services/announcement.service.js';
+import { listSupportRequests } from '../services/support.service.js';
 import { AppError } from '../utils/app-error.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -70,6 +71,15 @@ router.patch(
     }
 
     res.json({ success: true, data: announcement });
+  }),
+);
+
+router.get(
+  '/admin/support-requests',
+  asyncHandler(async (req, res) => {
+    requireInternalSecret(req);
+    const supportRequests = await listSupportRequests();
+    res.json({ success: true, data: supportRequests });
   }),
 );
 
