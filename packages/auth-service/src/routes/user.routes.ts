@@ -3,6 +3,7 @@ import * as favoriteController from '../controllers/favorite.controller.js';
 import * as userController from '../controllers/user.controller.js';
 import { auditLogger } from '../middleware/audit-logger.js';
 import { requireAuth } from '../middleware/auth.js';
+import { forgotPasswordRateLimiter, resetPasswordRateLimiter } from '../middleware/rate-limiter.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
 const router = Router();
@@ -19,8 +20,17 @@ router.patch(
 router.patch(
   '/me/password',
   requireAuth,
-  auditLogger('user.change_password'),
-  asyncHandler(userController.changePassword),
+  forgotPasswordRateLimiter,
+  auditLogger('user.request_password_change'),
+  asyncHandler(userController.requestPasswordChange),
+);
+
+router.post(
+  '/me/password/confirm',
+  requireAuth,
+  resetPasswordRateLimiter,
+  auditLogger('user.confirm_password_change'),
+  asyncHandler(userController.confirmPasswordChange),
 );
 
 router.patch(

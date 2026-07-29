@@ -31,7 +31,7 @@ export const updateProfileSchema = z
     { message: 'יש לספק לפחות שדה אחד לעדכון' },
   );
 
-export const changePasswordSchema = z
+export const requestPasswordChangeSchema = z
   .object({
     password: z.string().min(8, 'סיסמה חייבת להכיל לפחות 8 תווים'),
     confirmPassword: z.string().min(8, 'סיסמה חייבת להכיל לפחות 8 תווים'),
@@ -40,6 +40,10 @@ export const changePasswordSchema = z
     message: 'הסיסמאות אינן תואמות',
     path: ['confirmPassword'],
   });
+
+export const confirmPasswordChangeSchema = z.object({
+  code: z.string().regex(/^\d{4}$/, 'קוד חייב להיות 4 ספרות'),
+});
 
 export const deleteAccountSchema = z.object({
   password: z.string().min(8, 'סיסמה לא תקינה'),
@@ -59,7 +63,8 @@ export const fcmTokenSchema = z.object({
 });
 
 export type UpdateProfileBody = z.infer<typeof updateProfileSchema>;
-export type ChangePasswordBody = z.infer<typeof changePasswordSchema>;
+export type RequestPasswordChangeBody = z.infer<typeof requestPasswordChangeSchema>;
+export type ConfirmPasswordChangeBody = z.infer<typeof confirmPasswordChangeSchema>;
 export type DeleteAccountBody = z.infer<typeof deleteAccountSchema>;
 export type GdprDeleteBody = z.infer<typeof gdprDeleteSchema>;
 export type CompletePhoneBody = z.infer<typeof completePhoneSchema>;

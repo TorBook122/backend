@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { prisma } from '@torbook/db';
 import { signAccessToken } from '../lib/auth/jwt.js';
 import { hashPassword, verifyPassword } from '../lib/auth/password.js';
@@ -9,11 +10,19 @@ import {
   hashPii,
   normalizeEmail,
   normalizePhone,
+  PASSWORD_RESET_MAX_ATTEMPTS,
+  PASSWORD_RESET_TTL_SECONDS,
   type AuthTokens,
   type AuthUser,
 } from '@torbook/shared';
+import { sendPasswordChangeCode } from '../lib/email/resend.js';
+import { getRedis } from '../lib/redis.js';
 import { AppError } from '../utils/app-error.js';
-import type { ChangePasswordBody, UpdateProfileBody } from '../validators/user.validator.js';
+import type {
+  ConfirmPasswordChangeBody,
+  RequestPasswordChangeBody,
+  UpdateProfileBody,
+} from '../validators/user.validator.js';
 
 function toAuthUser(user: {
   id: string;
@@ -152,17 +161,101 @@ export async function updateProfile(
   return toAuthUser(updated);
 }
 
-export async function changePassword(userId: string, input: ChangePasswordBody): Promise<{ changed: true }> {
+function hashVerificationCode(code: string): string {
+  return createHash('sha256').update(code).digest('hex');
+}
+
+function generateVerificationCode(): string {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function pwdChangeKey(userId: string): string {
+  return `pwd_change:${userId}`;
+}
+
+function pwdChangeAttemptsKey(userId: string): string {
+  return `pwd_change_attempts:${userId}`;
+}
+
+export async function requestPasswordChange(
+  userId: string,
+  input: RequestPasswordChangeBody,
+): Promise<{ email: string }> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.deletedAt) {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'משתמש לא נמצא');
   }
 
+  const emailPlain = tryDecryptPii(user.emailEnc);
+  if (!emailPlain) {
+    throw new AppError(
+      400,
+      API_ERROR_CODES.VALIDATION_ERROR,
+      'יש להוסיף כתובת אימייל לחשבון לפני עדכון הסיסמה',
+    );
+  }
+
+  const code = generateVerificationCode();
+  const codeHash = hashVerificationCode(code);
   const passwordHash = await hashPassword(input.password);
+  const redis = getRedis();
+
+  await redis.set(
+    pwdChangeKey(userId),
+    JSON.stringify({ passwordHash, codeHash }),
+    'EX',
+    PASSWORD_RESET_TTL_SECONDS,
+  );
+  await redis.del(pwdChangeAttemptsKey(userId));
+
+  await sendPasswordChangeCode(emailPlain, code);
+
+  return { email: emailPlain };
+}
+
+export async function confirmPasswordChange(
+  userId: string,
+  input: ConfirmPasswordChangeBody,
+): Promise<{ changed: true }> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.deletedAt) {
+    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'משתמש לא נמצא');
+  }
+
+  const redis = getRedis();
+  const stored = await redis.get(pwdChangeKey(userId));
+  if (!stored) {
+    throw new AppError(400, API_ERROR_CODES.INVALID_RESET_CODE, 'הקוד פג תוקף. בקשו קוד חדש.');
+  }
+
+  const { passwordHash, codeHash } = JSON.parse(stored) as {
+    passwordHash: string;
+    codeHash: string;
+  };
+  const inputHash = hashVerificationCode(input.code);
+
+  if (inputHash !== codeHash) {
+    const attempts = await redis.incr(pwdChangeAttemptsKey(userId));
+    if (attempts === 1) {
+      await redis.expire(pwdChangeAttemptsKey(userId), PASSWORD_RESET_TTL_SECONDS);
+    }
+    if (attempts >= PASSWORD_RESET_MAX_ATTEMPTS) {
+      await redis.del(pwdChangeKey(userId), pwdChangeAttemptsKey(userId));
+      throw new AppError(
+        400,
+        API_ERROR_CODES.INVALID_RESET_CODE,
+        'יותר מדי ניסיונות שגויים. בקשו קוד חדש.',
+      );
+    }
+    throw new AppError(400, API_ERROR_CODES.INVALID_RESET_CODE, 'קוד שגוי');
+  }
+
   await prisma.user.update({
     where: { id: userId },
     data: { passwordHash },
   });
+
+  await redis.del(pwdChangeKey(userId), pwdChangeAttemptsKey(userId));
 
   return { changed: true };
 }
