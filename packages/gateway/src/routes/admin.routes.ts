@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import express, { type Request, type Response, Router } from 'express';
 import { asyncHandler } from '../utils/async-handler.js';
 import { getRedis } from '../lib/redis.js';
@@ -7,6 +7,9 @@ const SESSION_COOKIE = 'torbook_admin_session';
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
 const REDIS_SESSION_PREFIX = 'admin_session:';
+const REDIS_LOGIN_ATTEMPT_PREFIX = 'admin_login_fail:';
+const ADMIN_LOGIN_MAX_ATTEMPTS = 5;
+const ADMIN_LOGIN_LOCKOUT_SECONDS = 15 * 60;
 
 const API_ROUTES = [
   { group: 'Health', routes: ['GET /health', 'GET /api/v1/health'] },
@@ -106,11 +109,52 @@ function getAdminCredentials(): { username: string; password: string } {
   const password = process.env.ADMIN_PASSWORD;
 
   if (!username || !password) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'ADMIN_USERNAME/ADMIN_PASSWORD must be set in production — refusing to use default credentials',
+      );
+    }
     console.warn('[admin] ADMIN_USERNAME/ADMIN_PASSWORD not set — using default dev credentials');
     return { username: 'admin', password: 'admin' };
   }
 
   return { username, password };
+}
+
+/** Constant-time string comparison to avoid leaking credential length/prefix via timing. */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    // Still run a comparison of equal-length buffers so the branch takes comparable time.
+    timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return timingSafeEqual(bufA, bufB);
+}
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim() ?? req.ip ?? 'unknown';
+  return req.ip ?? 'unknown';
+}
+
+async function isLoginLocked(ip: string): Promise<boolean> {
+  const attempts = await getRedis().get(`${REDIS_LOGIN_ATTEMPT_PREFIX}${ip}`);
+  return Boolean(attempts) && Number(attempts) >= ADMIN_LOGIN_MAX_ATTEMPTS;
+}
+
+async function recordLoginFailure(ip: string): Promise<void> {
+  const redis = getRedis();
+  const key = `${REDIS_LOGIN_ATTEMPT_PREFIX}${ip}`;
+  const attempts = await redis.incr(key);
+  if (attempts === 1) {
+    await redis.expire(key, ADMIN_LOGIN_LOCKOUT_SECONDS);
+  }
+}
+
+async function clearLoginFailures(ip: string): Promise<void> {
+  await getRedis().del(`${REDIS_LOGIN_ATTEMPT_PREFIX}${ip}`);
 }
 
 function sessionCookieOptions() {
@@ -603,15 +647,30 @@ router.get(
 router.post(
   '/login',
   asyncHandler(async (req: Request, res: Response) => {
+    const ip = getClientIp(req);
+
+    if (await isLoginLocked(ip)) {
+      res
+        .status(429)
+        .type('html')
+        .send(renderLoginPage('יותר מדי ניסיונות כניסה. נסה שוב מאוחר יותר.'));
+      return;
+    }
+
     const { username, password } = getAdminCredentials();
     const submittedUsername = typeof req.body?.username === 'string' ? req.body.username : '';
     const submittedPassword = typeof req.body?.password === 'string' ? req.body.password : '';
 
-    if (submittedUsername !== username || submittedPassword !== password) {
+    const usernameMatches = safeEqual(submittedUsername, username);
+    const passwordMatches = safeEqual(submittedPassword, password);
+
+    if (!usernameMatches || !passwordMatches) {
+      await recordLoginFailure(ip);
       res.status(401).type('html').send(renderLoginPage('Invalid username or password.'));
       return;
     }
 
+    await clearLoginFailures(ip);
     const token = await createSession();
     res.cookie(SESSION_COOKIE, token, sessionCookieOptions());
     res.redirect('/admin/dashboard');

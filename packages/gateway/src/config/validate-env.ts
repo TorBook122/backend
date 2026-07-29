@@ -5,6 +5,8 @@ const REQUIRED_IN_PRODUCTION = [
   'INTERNAL_SERVICE_SECRET',
   'REDIS_URL',
   'CORS_ORIGIN',
+  'ADMIN_USERNAME',
+  'ADMIN_PASSWORD',
 ] as const;
 
 export function validateProductionEnv(): void {

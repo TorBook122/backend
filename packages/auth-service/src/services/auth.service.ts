@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Response } from 'express';
 import { prisma } from '@torbook/db';
 import {
@@ -281,7 +281,20 @@ function hashResetCode(code: string): string {
 }
 
 function generateResetCode(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
+  // 6-digit CSPRNG code (000000–999999) — Math.random() is not suitable for
+  // security-sensitive tokens and a 4-digit space is brute-forceable.
+  return String(randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+/** Constant-time comparison of two equal-format hex digests. */
+function safeCompareHex(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'hex');
+  const bufB = Buffer.from(b, 'hex');
+  if (bufA.length !== bufB.length) {
+    timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return timingSafeEqual(bufA, bufB);
 }
 
 function pwdResetKey(lookupHash: string): string {
@@ -355,16 +368,18 @@ export async function activateEmployee(input: ActivateEmployeeBody, res: Respons
 }
 
 export async function forgotPassword(input: ForgotPasswordBody): Promise<void> {
+  // Always resolve successfully regardless of whether the email exists, to avoid
+  // leaking account existence to an unauthenticated caller (user enumeration).
   const emailHash = hashPii(normalizeEmail(input.email));
   const user = await prisma.user.findUnique({ where: { emailHash } });
 
   if (!user || user.deletedAt) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'האימייל אינו קיים במערכת');
+    return;
   }
 
   const emailPlain = tryDecryptPii(user.emailEnc);
   if (!emailPlain) {
-    throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'האימייל אינו קיים במערכת');
+    return;
   }
 
   const code = generateResetCode();
@@ -387,7 +402,7 @@ export async function resetPassword(input: ResetPasswordBody): Promise<void> {
   }
 
   const inputHash = hashResetCode(input.code);
-  if (inputHash !== storedHash) {
+  if (!safeCompareHex(inputHash, storedHash)) {
     const attempts = await redis.incr(pwdResetAttemptsKey(emailHash));
     if (attempts === 1) {
       await redis.expire(pwdResetAttemptsKey(emailHash), PASSWORD_RESET_TTL_SECONDS);

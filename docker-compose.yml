@@ -11,7 +11,9 @@ x-loopback-services: &loopback-services
   QUEUE_SERVICE_URL: http://127.0.0.1:3004
   DB_SERVICE_URL: http://127.0.0.1:3010
   SHARED_SERVICE_URL: http://127.0.0.1:3011
-  INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+  # No hardcoded fallback — must come from .env (see .env.example), same as JWT/AES
+  # secrets, so nobody accidentally runs with the publicly-known value from this file.
+  INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
 
 networks:
   torbook-internal:
@@ -25,7 +27,8 @@ services:
     networks:
       - torbook-internal
     ports:
-      - '5433:5432'
+      # Bound to loopback only — Postgres must never be reachable from outside this host.
+      - '127.0.0.1:5433:5432'
     environment:
       POSTGRES_USER: torbook
       POSTGRES_PASSWORD: torbook_dev
@@ -45,7 +48,8 @@ services:
     networks:
       - torbook-internal
     ports:
-      - '6379:6379'
+      # Bound to loopback only — Redis has no auth and must never be reachable externally.
+      - '127.0.0.1:6379:6379'
     volumes:
       - torbook_redis_data:/data
     healthcheck:

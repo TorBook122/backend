@@ -29,7 +29,7 @@ type DbEmployeeRow = {
   title: string | null;
   inviteTokenHash: string | null;
   inviteExpiresAt: string | null;
-  user: { passwordHash: string | null } | null;
+  user: { hasPassword: boolean } | null;
   role: { id: string; name: string; permissions: string[] } | null;
 };
 
@@ -86,7 +86,7 @@ function generateInviteFields(): { rawToken: string; inviteTokenHash: string; in
 }
 
 function resolveAccountStatus(row: DbEmployeeRow): EmployeeAccountStatus {
-  if (row.user?.passwordHash) {
+  if (row.user?.hasPassword) {
     return 'active';
   }
   return 'pending_activation';
@@ -203,7 +203,7 @@ export async function regenerateEmployeeInvite(
   const existing = await dbClient.employees.findById(employeeId);
   await assertOwnerPro(existing.businessId, userId);
 
-  if (existing.user?.passwordHash) {
+  if (existing.user?.hasPassword) {
     throw new AppError(409, API_ERROR_CODES.ACCOUNT_ALREADY_ACTIVE, 'חשבון העובד כבר הופעל');
   }
 

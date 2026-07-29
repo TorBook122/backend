@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { API_ERROR_CODES, UserRole } from '@torbook/shared';
+import { API_ERROR_CODES, UserRole, timingSafeEqualStrings } from '@torbook/shared';
 import { AppError } from '../utils/app-error.js';
 
 export type AuthenticatedRequest = Request & {
@@ -16,7 +16,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   const expectedSecret = process.env.INTERNAL_SERVICE_SECRET;
   const secret = headerValue(req.headers['x-internal-secret']);
 
-  if (!expectedSecret || secret !== expectedSecret) {
+  if (!expectedSecret || !secret || !timingSafeEqualStrings(secret, expectedSecret)) {
     next(new AppError(401, API_ERROR_CODES.UNAUTHORIZED, 'נדרשת התחברות'));
     return;
   }

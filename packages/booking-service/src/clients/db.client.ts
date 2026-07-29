@@ -329,7 +329,7 @@ export const dbClient = {
           title: string | null;
           inviteTokenHash: string | null;
           inviteExpiresAt: string | null;
-          user: { passwordHash: string | null } | null;
+          user: { hasPassword: boolean } | null;
           role: { id: string; name: string; permissions: string[] } | null;
         }>
       >(`/employees/business/${encodeURIComponent(businessId)}`),
@@ -348,7 +348,7 @@ export const dbClient = {
         inviteTokenHash: string | null;
         inviteExpiresAt: string | null;
         business: { id: string; name: string };
-        user: { passwordHash: string | null } | null;
+        user: { hasPassword: boolean } | null;
         role: { id: string; name: string; permissions: string[] } | null;
       }>(`/employees/user/${encodeURIComponent(userId)}`),
     findById: (id: string) =>
@@ -364,7 +364,7 @@ export const dbClient = {
         inviteTokenHash: string | null;
         inviteExpiresAt: string | null;
         business: DbBusiness;
-        user: { passwordHash: string | null } | null;
+        user: { hasPassword: boolean } | null;
         role: { id: string; name: string; permissions: string[] } | null;
       }>(`/employees/${encodeURIComponent(id)}`),
     create: (
@@ -391,7 +391,7 @@ export const dbClient = {
         title: string | null;
         inviteTokenHash: string | null;
         inviteExpiresAt: string | null;
-        user: { passwordHash: string | null } | null;
+        user: { hasPassword: boolean } | null;
         role: { id: string; name: string; permissions: string[] } | null;
       }>(`/employees/business/${encodeURIComponent(businessId)}`, data),
     update: (
@@ -417,7 +417,7 @@ export const dbClient = {
         title: string | null;
         inviteTokenHash: string | null;
         inviteExpiresAt: string | null;
-        user: { passwordHash: string | null } | null;
+        user: { hasPassword: boolean } | null;
         role: { id: string; name: string; permissions: string[] } | null;
       }>(`/employees/${encodeURIComponent(id)}`, data),
     delete: (id: string) => dbDelete<{ deleted: boolean }>(`/employees/${encodeURIComponent(id)}`),

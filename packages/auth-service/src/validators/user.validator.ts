@@ -42,7 +42,7 @@ export const requestPasswordChangeSchema = z
   });
 
 export const confirmPasswordChangeSchema = z.object({
-  code: z.string().regex(/^\d{4}$/, 'קוד חייב להיות 4 ספרות'),
+  code: z.string().regex(/^\d{6}$/, 'קוד חייב להיות 6 ספרות'),
 });
 
 export const deleteAccountSchema = z.object({

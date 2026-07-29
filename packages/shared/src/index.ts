@@ -5,6 +5,7 @@ export * from './types/queue.js';
 export * from './constants/index.js';
 export * from './dtos/auth.dto.js';
 export * from './utils/crypto.js';
+export * from './utils/timing-safe.js';
 export * from './utils/date.js';
 export * from './utils/comment-sentiment.js';
 export * from './utils/comment-profanity.js';

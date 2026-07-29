@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { timingSafeEqualStrings } from '../utils/timing-safe.js';
 
 export function requireInternalKey(req: Request, res: Response, next: NextFunction) {
   const secret = process.env.INTERNAL_SERVICE_SECRET;
@@ -8,7 +9,7 @@ export function requireInternalKey(req: Request, res: Response, next: NextFuncti
   }
 
   const key = req.headers['x-internal-key'];
-  if (key !== secret) {
+  if (typeof key !== 'string' || !timingSafeEqualStrings(key, secret)) {
     res.status(401).json({ success: false, error: 'Unauthorized' });
     return;
   }

@@ -157,6 +157,16 @@ export async function updateBusiness(
   userRole: string,
   input: UpdateBusinessBody,
 ): Promise<BusinessOwner> {
+  // Always verify the caller is affiliated with this business first — the field-specific
+  // checks below only run when their corresponding fields are present, so a body with no
+  // recognized fields (e.g. `{}`) must not be able to skip authorization entirely.
+  await assertAnyBusinessPermission(userId, userRole, businessId, [
+    EmployeePermission.EDIT_BUSINESS_PROFILE,
+    EmployeePermission.EDIT_BUSINESS_MEDIA,
+    EmployeePermission.EDIT_BUSINESS_SOCIAL,
+    EmployeePermission.EDIT_CANCELLATION_POLICY,
+  ]);
+
   if (
     input.name !== undefined ||
     input.category !== undefined ||

@@ -47,6 +47,18 @@ export function toWhatsAppE164(digits: string): string {
   return `+${normalized}`;
 }
 
+/** Redact values for keys that may carry OTP/verification codes before they hit the logs. */
+function redactSensitiveVariables(
+  vars: Record<string, string> | undefined,
+): Record<string, string> | undefined {
+  if (!vars) return vars;
+  const redacted: Record<string, string> = {};
+  for (const [key, value] of Object.entries(vars)) {
+    redacted[key] = /code/i.test(key) ? '[REDACTED]' : value;
+  }
+  return redacted;
+}
+
 export async function sendWhatsAppMessage(
   toDigits: string,
   body: string,
@@ -58,7 +70,12 @@ export async function sendWhatsAppMessage(
 
   if (isWhatsAppLogOnlyMode()) {
     // eslint-disable-next-line no-console
-    console.log('[WhatsApp log-only]', { to, body, contentVariables, contentSid });
+    console.log('[WhatsApp log-only]', {
+      to,
+      body: /קוד/.test(body) ? '[REDACTED — contains a verification code]' : body,
+      contentVariables: redactSensitiveVariables(contentVariables),
+      contentSid,
+    });
     return;
   }
 

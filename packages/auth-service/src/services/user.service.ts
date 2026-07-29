@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import { prisma } from '@torbook/db';
 import { signAccessToken } from '../lib/auth/jwt.js';
 import { hashPassword, verifyPassword } from '../lib/auth/password.js';
@@ -166,7 +166,19 @@ function hashVerificationCode(code: string): string {
 }
 
 function generateVerificationCode(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
+  // 6-digit CSPRNG code — Math.random() is not suitable for security-sensitive tokens.
+  return String(randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+/** Constant-time comparison of two equal-format hex digests. */
+function safeCompareHex(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'hex');
+  const bufB = Buffer.from(b, 'hex');
+  if (bufA.length !== bufB.length) {
+    timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return timingSafeEqual(bufA, bufB);
 }
 
 function pwdChangeKey(userId: string): string {
@@ -234,7 +246,7 @@ export async function confirmPasswordChange(
   };
   const inputHash = hashVerificationCode(input.code);
 
-  if (inputHash !== codeHash) {
+  if (!safeCompareHex(inputHash, codeHash)) {
     const attempts = await redis.incr(pwdChangeAttemptsKey(userId));
     if (attempts === 1) {
       await redis.expire(pwdChangeAttemptsKey(userId), PASSWORD_RESET_TTL_SECONDS);

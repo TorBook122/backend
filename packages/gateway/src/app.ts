@@ -19,14 +19,38 @@ function serviceProxy(target: string, apiPrefix: string) {
   });
 }
 
+// Trust-boundary headers that only the gateway is allowed to set (after validating the
+// caller's JWT). A client could otherwise set these directly and have them forwarded
+// verbatim to internal services, so they must be stripped on every inbound request
+// before any auth/proxy logic runs.
+const SPOOFABLE_TRUST_HEADERS = ['x-internal-secret', 'x-user-id', 'x-user-role', 'x-user-onboarding'];
+
+function stripSpoofedTrustHeaders(req: express.Request, _res: express.Response, next: express.NextFunction) {
+  for (const header of SPOOFABLE_TRUST_HEADERS) {
+    delete req.headers[header];
+  }
+  // Overwrite (never append to) X-Forwarded-For with the gateway's own resolution of the
+  // client IP. Internal services are on a trusted loopback hop and read this header
+  // directly for rate limiting — without this, a client could prepend an arbitrary
+  // spoofed IP to bypass IP-based rate limits / lockouts.
+  req.headers['x-forwarded-for'] = req.ip;
+  next();
+}
+
 export function createApp(): Express {
   const app = express();
 
   const authServiceUrl = process.env.AUTH_SERVICE_URL ?? 'http://localhost:3002';
   const bookingServiceUrl = process.env.BOOKING_SERVICE_URL ?? 'http://localhost:3003';
 
+  // Render (and similar PaaS) sit in front of the gateway as a single reverse-proxy hop;
+  // trust exactly that hop's X-Forwarded-For entry when resolving req.ip so it can't be
+  // spoofed by a client-supplied header with extra prepended entries.
+  app.set('trust proxy', 1);
+
   app.use(helmet());
   app.use(cookieParser());
+  app.use(stripSpoofedTrustHeaders);
   app.use('/admin', adminRoutes);
 
   const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')

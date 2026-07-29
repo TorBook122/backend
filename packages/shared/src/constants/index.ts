@@ -7,6 +7,14 @@ export const BCRYPT_ROUNDS = 12;
 export const LOGIN_MAX_ATTEMPTS = 7;
 export const LOGIN_LOCKOUT_SECONDS = 3 * 60;
 
+// Tighter per-account cap (in addition to the per-IP cap) so an attacker cannot bypass
+// lockout by distributing login attempts against a single victim account across many IPs.
+export const LOGIN_ACCOUNT_MAX_ATTEMPTS = 10;
+export const LOGIN_ACCOUNT_LOCKOUT_SECONDS = 15 * 60;
+
+export const REGISTER_MAX_ATTEMPTS = 10;
+export const REGISTER_WINDOW_SECONDS = 60 * 60;
+
 export const PASSWORD_RESET_TTL_SECONDS = 600;
 export const PASSWORD_RESET_MAX_ATTEMPTS = 5;
 export const PASSWORD_RESET_REQUEST_MAX = 5;

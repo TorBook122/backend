@@ -13,7 +13,18 @@ function getEncryptionKey(): Buffer {
 }
 
 function getHashSecret(): string {
-  return process.env.JWT_ACCESS_SECRET ?? 'torbook-hash-secret';
+  // Prefer a dedicated secret so PII lookup hashes can be rotated independently of the
+  // JWT signing key. Falls back to JWT_ACCESS_SECRET only for backward compatibility with
+  // hashes already stored in the database — never to a hardcoded/public default, since that
+  // would make emailHash/phoneHash brute-forceable by anyone who reads this source file.
+  const secret = process.env.PII_HASH_SECRET ?? process.env.JWT_ACCESS_SECRET;
+  if (!secret) {
+    throw new Error('PII_HASH_SECRET (or JWT_ACCESS_SECRET) is required to hash PII lookup values');
+  }
+  if (Buffer.byteLength(secret, 'utf8') < 32) {
+    throw new Error('PII_HASH_SECRET (or JWT_ACCESS_SECRET) must be at least 32 bytes');
+  }
+  return secret;
 }
 
 export function encryptPii(plaintext: string): string {

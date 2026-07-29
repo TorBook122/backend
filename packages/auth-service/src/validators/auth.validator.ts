@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { UserRole } from '@torbook/shared';
 
+// EMPLOYEE accounts must only be created via the owner-issued invite/activation flow
+// (see activateEmployee) — never through public self-service registration or Google
+// sign-up, which would let anyone grant themselves employee-level access.
+const selfServiceRoleSchema = z.enum([UserRole.CUSTOMER, UserRole.BUSINESS_OWNER]);
+
 export const registerSchema = z.object({
   name: z.string().min(2, 'שם חייב להכיל לפחות 2 תווים'),
   phone: z.string().min(9, 'מספר טלפון לא תקין'),
@@ -9,7 +14,7 @@ export const registerSchema = z.object({
     z.string({ required_error: 'נא להזין אימייל' }).email('אימייל לא תקין'),
   ),
   password: z.string().min(8, 'סיסמה חייבת להכיל לפחות 8 תווים'),
-  role: z.nativeEnum(UserRole),
+  role: selfServiceRoleSchema,
 });
 
 export const loginSchema = z.object({
@@ -20,7 +25,7 @@ export const loginSchema = z.object({
 
 export const googleAuthSchema = z.object({
   idToken: z.string().min(10),
-  role: z.nativeEnum(UserRole).optional(),
+  role: selfServiceRoleSchema.optional(),
 });
 
 export const activateEmployeeSchema = z
@@ -41,7 +46,7 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z
   .object({
     email: z.string().email('אימייל לא תקין'),
-    code: z.string().regex(/^\d{4}$/, 'קוד חייב להיות 4 ספרות'),
+    code: z.string().regex(/^\d{6}$/, 'קוד חייב להיות 6 ספרות'),
     password: z.string().min(8, 'סיסמה חייבת להכיל לפחות 8 תווים'),
     confirmPassword: z.string().min(8, 'סיסמה חייבת להכיל לפחות 8 תווים'),
   })

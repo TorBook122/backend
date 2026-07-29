@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as appointmentController from '../controllers/appointment.controller.js';
 import { auditLogger } from '../middleware/audit-logger.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { bookAppointmentRateLimiter } from '../middleware/rate-limiter.js';
 import { UserRole } from '@torbook/shared';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -10,6 +11,7 @@ const router = Router();
 router.post(
   '/:slug/book',
   requireAuth,
+  bookAppointmentRateLimiter,
   auditLogger('appointment.create'),
   asyncHandler(appointmentController.book),
 );
