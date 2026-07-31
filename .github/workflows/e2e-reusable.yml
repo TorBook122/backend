@@ -1,0 +1,148 @@
+# Cross-repo Playwright suite — callable from backend and frontend workflows.
+name: E2E (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      backend_branch:
+        description: Branch of TorBook122/backend to test
+        required: true
+        type: string
+      frontend_branch:
+        description: Branch of TorBook122/frontend to test against
+        required: true
+        type: string
+      soft:
+        description: When true, failures do not fail the caller workflow
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: ${{ inputs.soft }}
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: torbook_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports: ['5432:5432']
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-retries 5
+        ports: ['6379:6379']
+
+    env:
+      CI: true
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/torbook_test
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: test-access-secret-min-32-chars-xx
+      JWT_REFRESH_SECRET: test-refresh-secret-min-32-chars-x
+      AES_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      INTERNAL_SERVICE_SECRET: test-internal-secret-key
+      FCM_SERVICE_ACCOUNT_JSON: '{"type":"service_account"}'
+      AWS_REGION: us-east-1
+      AWS_SQS_QUEUE_URL: ''
+      NODE_ENV: test
+      CORS_ORIGIN: http://localhost:3000
+      PORT: '3001'
+
+    steps:
+      - name: Checkout backend
+        uses: actions/checkout@v4
+        with:
+          repository: TorBook122/backend
+          ref: ${{ inputs.backend_branch }}
+          path: backend
+
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+        with:
+          repository: TorBook122/frontend
+          ref: ${{ inputs.frontend_branch }}
+          path: frontend
+
+      - name: Checkout e2e
+        uses: actions/checkout@v4
+        with:
+          repository: TorBook122/e2e_torbook
+          ref: main
+          path: e2e
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+
+      - name: Install backend and E2E dependencies
+        working-directory: backend
+        run: pnpm install --frozen-lockfile
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --ignore-workspace --frozen-lockfile
+
+      - name: Generate Prisma client
+        working-directory: backend
+        run: pnpm --filter @torbook/db exec prisma generate
+
+      - name: Run DB migrations (test DB)
+        working-directory: backend
+        run: pnpm --filter @torbook/db exec prisma migrate deploy
+
+      - name: Build backend packages
+        working-directory: backend
+        run: pnpm -r run build
+
+      - name: Create backend .env for E2E stack
+        working-directory: backend
+        run: |
+          cat > .env <<EOF
+          DATABASE_URL=${DATABASE_URL}
+          REDIS_URL=${REDIS_URL}
+          JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+          JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+          AES_ENCRYPTION_KEY=${AES_ENCRYPTION_KEY}
+          INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
+          FCM_SERVICE_ACCOUNT_JSON=${FCM_SERVICE_ACCOUNT_JSON}
+          AWS_REGION=${AWS_REGION}
+          AWS_SQS_QUEUE_URL=${AWS_SQS_QUEUE_URL}
+          NODE_ENV=${NODE_ENV}
+          CORS_ORIGIN=${CORS_ORIGIN}
+          PORT=${PORT}
+          EOF
+
+      - name: Install Playwright browsers
+        working-directory: backend
+        run: pnpm --filter @torbook/e2e exec playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        working-directory: backend
+        run: pnpm --filter @torbook/e2e test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7

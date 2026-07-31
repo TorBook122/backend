@@ -23,14 +23,14 @@ These directories remain in the repo from an earlier migration but are **not** p
 | `packages/auth/` | Legacy — Dockerfile only, no application code |
 | `packages/notifications/` | Legacy — push logic lives in `@torbook/queue` |
 
-Do not document or wire these as active Render services.
+Do not document or wire these as active deploy services.
 
 ## Read first
 
 - **Deployment & architecture:** [`docs/DEPLOY.md`](docs/DEPLOY.md)
+- **Git workflow & CI gates:** [`docs/GIT_WORKFLOW.md`](docs/GIT_WORKFLOW.md)
 - **Per-service details:** [`docs/services/`](docs/services/)
-- **Render config (authoritative):** [`render.yaml`](render.yaml)
-- **Local wiring (authoritative):** [`docker-compose.yml`](docker-compose.yml)
+- **Railway / Docker config:** [`docker-compose.yml`](docker-compose.yml) · [`Dockerfile`](Dockerfile)
 - **Env placeholders:** [`.env.example`](.env.example)
 
 ## Commands

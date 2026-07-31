@@ -1,6 +1,10 @@
 # KvaTor Backend — Deployment Guide
 
-Master reference for local development and Render deployment. Authoritative config lives in [`render.yaml`](../render.yaml) and [`docker-compose.yml`](../docker-compose.yml).
+Master reference for local development and production deployment. Authoritative Docker config lives in [`Dockerfile`](../Dockerfile) and [`docker-compose.yml`](../docker-compose.yml).
+
+**Staging (this phase):** Railway, branch `backend_staging`, autodeploy ON, **Wait for CI** ON. See [`docs/GIT_WORKFLOW.md`](GIT_WORKFLOW.md).
+
+**Production:** `main` is the git production line (CI + e2e gated); Railway Production autodeploy is deferred.
 
 ## Architecture
 
@@ -91,7 +95,29 @@ Copy [`.env.example`](../.env.example) to `.env`. Never commit `.env`. Placehold
 
 ---
 
-## Render deployment
+## Railway staging
+
+### Service setup
+
+1. Railway project → connect **TorBook122/backend**, branch **`backend_staging`**
+2. Enable **Autodeploy** and **Wait for CI** (deploy only after GitHub `ci` check passes)
+3. Use the same [`Dockerfile`](../Dockerfile) as local Docker / Render
+4. Attach managed Postgres and Redis (or external URLs in env vars)
+5. Set all secrets from the matrix below; set `CORS_ORIGIN` to the Railway frontend staging origin
+
+After merge to `backend_staging`, GitHub runs `ci` (+ `e2e` on PRs). Railway waits for required checks, then builds and deploys.
+
+### Verify staging
+
+1. `GET https://<staging-api-host>/health` returns `{ "success": true, "data": { "status": "ok" } }`
+2. Logs show `KvaTor monolith ready on port …` with no missing-env-var errors
+3. Auth smoke test: wrong credentials return **401** (not 500)
+
+---
+
+## Render deployment (legacy / alternate)
+
+Render Blueprint remains in [`render.yaml`](../render.yaml) for teams still on Render. The same Docker image works without changes.
 
 ### Blueprint setup
 
@@ -155,13 +181,13 @@ When bringing up a fresh environment:
 
 ## Frontend configuration
 
-Set the Next.js client API URL to the public Render host:
+Set the Next.js client API URL to the public staging or production gateway:
 
 ```
-NEXT_PUBLIC_API_URL=https://<torbook-host>/api/v1
+NEXT_PUBLIC_API_URL=https://<api-host>/api/v1
 ```
 
-For GitHub Pages deployments, configure this as a GitHub Actions variable or environment secret.
+On Railway, set this as a service variable on the frontend staging service. `CORS_ORIGIN` on the backend must include the matching frontend origin.
 
 ---
 

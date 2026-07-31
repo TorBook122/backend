@@ -1,0 +1,65 @@
+# Cross-repo E2E — soft (non-blocking) on PRs to backend_devlope; required on staging/main.
+name: E2E
+
+on:
+  pull_request:
+    branches: [backend_devlope, backend_staging, main]
+  push:
+    branches: [backend_staging, main]
+
+jobs:
+  resolve-branches:
+    runs-on: ubuntu-latest
+    outputs:
+      backend_branch: ${{ steps.map.outputs.backend_branch }}
+      frontend_branch: ${{ steps.map.outputs.frontend_branch }}
+      soft: ${{ steps.map.outputs.soft }}
+    steps:
+      - name: Map paired branches
+        id: map
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          case "$BASE_REF" in
+            backend_devlope)
+              echo "backend_branch=$HEAD_REF" >> "$GITHUB_OUTPUT"
+              echo "frontend_branch=frontend_devlope" >> "$GITHUB_OUTPUT"
+              echo "soft=true" >> "$GITHUB_OUTPUT"
+              ;;
+            backend_staging)
+              echo "backend_branch=$HEAD_REF" >> "$GITHUB_OUTPUT"
+              echo "frontend_branch=frontend_staging" >> "$GITHUB_OUTPUT"
+              echo "soft=false" >> "$GITHUB_OUTPUT"
+              ;;
+            main)
+              echo "backend_branch=$HEAD_REF" >> "$GITHUB_OUTPUT"
+              echo "frontend_branch=main" >> "$GITHUB_OUTPUT"
+              echo "soft=false" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "backend_branch=$HEAD_REF" >> "$GITHUB_OUTPUT"
+              echo "frontend_branch=main" >> "$GITHUB_OUTPUT"
+              echo "soft=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+  e2e-soft:
+    name: e2e-soft
+    needs: resolve-branches
+    if: needs.resolve-branches.outputs.soft == 'true'
+    uses: ./.github/workflows/e2e-reusable.yml
+    with:
+      backend_branch: ${{ needs.resolve-branches.outputs.backend_branch }}
+      frontend_branch: ${{ needs.resolve-branches.outputs.frontend_branch }}
+      soft: true
+
+  e2e:
+    name: e2e
+    needs: resolve-branches
+    if: needs.resolve-branches.outputs.soft != 'true'
+    uses: ./.github/workflows/e2e-reusable.yml
+    with:
+      backend_branch: ${{ needs.resolve-branches.outputs.backend_branch }}
+      frontend_branch: ${{ needs.resolve-branches.outputs.frontend_branch }}
+      soft: false
