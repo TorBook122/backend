@@ -41,7 +41,7 @@ Spelling stays **`devlope`** (not `develop`). Feature branches (`feature/*`) are
 Workflow locations (this repo):
 
 - CI: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
-- E2E: [`.github/workflows/e2e.yml`](../.github/workflows/e2e.yml)
+- E2E: [`.github/workflows/e2e.yml`](../.github/workflows/e2e.yml) (Playwright suite in [`e2e/`](../e2e/))
 - Frontend mirror: `TorBook122/frontend` → `.github/workflows/e2e.yml`
 
 ## Day-to-day developer path

@@ -14,7 +14,7 @@
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
-    "test": "pnpm -r run test",
+    "test": "pnpm -r --filter '!@torbook/e2e' run test",
     "db:generate": "pnpm --filter @torbook/db exec prisma generate",
     "db:migrate": "dotenv -e .env -- pnpm --filter @torbook/db exec prisma migrate dev",
     "db:migrate:deploy": "dotenv -e .env -- pnpm --filter @torbook/db exec tsx scripts/repair-migrations.ts && dotenv -e .env -- pnpm --filter @torbook/db exec prisma migrate deploy",

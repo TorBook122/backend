@@ -83,14 +83,25 @@ export async function stopTestStack(stack: TestStack): Promise<void> {
 
 export async function clearAuthRedisKeys(): Promise<void> {
   const redis = getAuthRedis();
-  const loginKeys = await redis.keys('login_fail:*');
-  const refreshKeys = await redis.keys('refresh:*');
-  if (loginKeys.length) await redis.del(...loginKeys);
-  if (refreshKeys.length) await redis.del(...refreshKeys);
+  const patterns = [
+    'login_fail:*',
+    'login_fail_acct:*',
+    'register_attempt:*',
+    'pwd_reset_req:*',
+    'pwd_reset_fail:*',
+    'refresh:*',
+  ];
+  for (const pattern of patterns) {
+    const keys = await redis.keys(pattern);
+    if (keys.length) await redis.del(...keys);
+  }
 }
 
 export async function clearBookingRedisKeys(): Promise<void> {
   const redis = getBookingRedis();
-  const slotKeys = await redis.keys('slots:*');
-  if (slotKeys.length) await redis.del(...slotKeys);
+  const patterns = ['slots:*', 'ratelimit:*'];
+  for (const pattern of patterns) {
+    const keys = await redis.keys(pattern);
+    if (keys.length) await redis.del(...keys);
+  }
 }

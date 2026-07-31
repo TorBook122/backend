@@ -66,7 +66,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/torbook_test
 
       - name: Run unit and integration tests
-        run: pnpm -r run test --run
+        run: pnpm -r --filter '!@torbook/e2e' run test --run
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/torbook_test
           REDIS_URL: redis://localhost:6379

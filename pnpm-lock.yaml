@@ -45,7 +45,7 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@25.9.2)
 
-  ../e2e:
+  e2e:
     dependencies:
       pg:
         specifier: ^8.13.1
