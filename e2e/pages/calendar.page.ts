@@ -11,6 +11,9 @@ export class CalendarPage {
   /** Waits for the calendar loading snackbar to finish (if shown). */
   async waitForLoaded(): Promise<void> {
     const loading = this.page.getByRole('status').filter({ hasText: 'טוען מידע...' });
+    // Snackbar may not be mounted yet when navigation starts — wait for it to appear
+    // first so "hidden" is not satisfied against a missing element.
+    await loading.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
     await loading.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => undefined);
   }
 

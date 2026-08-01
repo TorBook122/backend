@@ -7,7 +7,7 @@ import {
   registerCustomer,
   type SeededOwnerBusiness,
 } from '../helpers/seed-via-api.js';
-import { createConfirmedAppointment, hoursFromNow } from '../helpers/appointment-factory.js';
+import { createConfirmedAppointment, todayAtHour } from '../helpers/appointment-factory.js';
 
 const PENDING_CUSTOMER_NAME = 'לקוח ביטול מאוחר';
 
@@ -15,11 +15,13 @@ async function seedPendingLateCancel(seedBusiness: () => Promise<SeededOwnerBusi
   const { business, service, owner } = await seedBusiness();
   const customer = await registerCustomer({ name: PENDING_CUSTOMER_NAME });
   // Inside the default 24h window so cancel becomes PENDING_OWNER_DECISION.
+  // Use a fixed in-grid hour (08–19): hoursFromNow(2) can land at 22:xx Asia/Jerusalem
+  // in evening CI and never render on the owner calendar.
   const appointment = await createConfirmedAppointment({
     businessId: business.id,
     customerId: customer.id,
     serviceId: service.id,
-    startsAt: hoursFromNow(2),
+    startsAt: todayAtHour(11),
   });
 
   const cancelled = await cancelAppointmentViaApi(customer, appointment.id);
@@ -36,16 +38,14 @@ async function openCalendarOnAppointment(
   await expect(calendarPage.heading()).toBeVisible();
 
   // Wait for appointments to load before navigating weeks (avoids racing an empty grid).
+  const customerLabel = page.getByText(PENDING_CUSTOMER_NAME);
   for (let i = 0; i < 4; i += 1) {
-    try {
-      await page.getByText(PENDING_CUSTOMER_NAME).waitFor({ state: 'visible', timeout: 5_000 });
-      return;
-    } catch {
-      await calendarPage.nextWeekButton().click();
-    }
+    if (await customerLabel.isVisible().catch(() => false)) return;
+    await calendarPage.nextWeekButton().click();
+    await calendarPage.waitForLoaded();
   }
 
-  await expect(page.getByText(PENDING_CUSTOMER_NAME)).toBeVisible();
+  await expect(customerLabel).toBeVisible({ timeout: 15_000 });
 }
 
 test.describe('late cancel owner decision', () => {
