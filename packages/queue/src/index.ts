@@ -18,7 +18,13 @@ export async function enqueueJob(job: QueueJob): Promise<void> {
     // No SQS worker in local Docker — run due jobs inline so WhatsApp/FCM still fire.
     const delayMs = new Date(job.scheduledAt).getTime() - Date.now();
     if (delayMs <= 1000) {
-      await processJob(job);
+      try {
+        await processJob(job);
+      } catch (error) {
+        // Notification delivery must not fail enqueue in log-only / E2E mode.
+        // eslint-disable-next-line no-console
+        console.error('[SQS log-only] inline job failed', { type: job.type, error });
+      }
     } else {
       // eslint-disable-next-line no-console
       console.log('[SQS log-only] delayed job skipped (no worker)', {
