@@ -1,6 +1,6 @@
 # Git workflow — develop → staging → main
 
-Cross-repo git flow for KvaTor. Backend and frontend are separate GitHub repos with paired branch names. Only **Railway Staging** auto-deploys in this phase; production Railway deploy from `main` is deferred.
+Cross-repo git flow for KvaTor. Backend and frontend are separate GitHub repos with paired branch names. **Railway Staging** deploys manually after merge to `*_staging`; **Railway Production** auto-deploys from `main` after CI passes.
 
 ## Branch flow
 
@@ -12,11 +12,11 @@ flowchart LR
   devlope -->|"e2e soft, non-blocking"| e2eSoft[E2E background]
   mergeDev -->|"PR"| staging["*_staging"]
   staging -->|"required: CI + full e2e"| mergeStg[Merge]
-  mergeStg -->|"Railway Wait for CI"| rwStg[Railway Staging]
+  mergeStg -->|"manual Railway deploy"| rwStg[Railway Staging]
   mergeStg -->|"manual QA on live staging"| qa[Manual QA]
   qa -->|"PR"| mainBr[main]
   mainBr -->|"required: CI + full e2e"| mergeMain[Merge]
-  mergeMain -.->|"deferred: no Railway prod yet"| prodLater[Production later]
+  mergeMain -->|"Railway Wait for CI"| rwProd[Railway Production]
 ```
 
 ### Branch names
@@ -36,22 +36,24 @@ Spelling stays **`devlope`** (not `develop`). Feature branches (`feature/*`) are
 | PR → `*_devlope` | PR into develop | **required** | runs as **`e2e-soft`**, does **not** block merge |
 | PR → `*_staging` | PR develop → staging | **required** | **required** (`e2e`) |
 | PR → `main` | PR staging → main | **required** | **required** (`e2e`) |
-| Push to `*_staging` | after merge | CI green → Railway Staging deploy | — |
+| Push to `*_staging` | after merge | CI runs; **manual** Railway Staging deploy | — |
+| Push to `main` | after merge | CI green → Railway Production auto-deploy | — |
 
-Workflow locations (this repo):
+Workflow locations:
 
-- CI: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
-- E2E: [`.github/workflows/e2e.yml`](../.github/workflows/e2e.yml) (Playwright suite in [`e2e/`](../e2e/))
-- Frontend mirror: `TorBook122/frontend` → `.github/workflows/e2e.yml`
+- Backend CI: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+- Frontend CI: `TorBook122/frontend` → `.github/workflows/ci.yml`
+- E2E (backend): [`.github/workflows/e2e.yml`](../.github/workflows/e2e.yml)
+- E2E (frontend mirror): `TorBook122/frontend` → `.github/workflows/e2e.yml`
 
 ## Day-to-day developer path
 
 1. `git checkout -b feature/my-change` from latest `*_devlope`
 2. Commit + push — no CI on feature branches
 3. Open PR → `*_devlope` — wait for repo CI; e2e-soft may fail without blocking
-4. Open PR `*_devlope` → `*_staging` — full CI + e2e must pass → Railway Staging deploys after Wait for CI
+4. Open PR `*_devlope` → `*_staging` — full CI + e2e must pass → **manually deploy** both Railway Staging services (backend + frontend)
 5. Manual QA on live staging
-6. Open PR `*_staging` → `main` — full CI + e2e again (git production line; no Railway prod deploy yet)
+6. Open PR `*_staging` → `main` — full CI + e2e again → Railway Production auto-deploys after Wait for CI
 
 ## PR checklist
 
@@ -61,6 +63,10 @@ Before merging to `*_staging`:
 - [ ] E2E (`e2e`) green
 - [ ] Paired repo branch is in sync if the change is cross-cutting (API + UI)
 - [ ] Enum sync passes on frontend if backend enums changed
+
+After merging to `*_staging`:
+
+- [ ] Manually deploy backend + frontend on Railway Staging (Dashboard → Deploy, or `railway up` on the staging service)
 
 Before merging to `main`:
 
@@ -80,11 +86,23 @@ Apply to **both** Railway staging services (backend monolith + frontend static s
 | Setting | Value |
 |---------|--------|
 | Connected branch | `backend_staging` / `frontend_staging` respectively |
-| Autodeploy | **ON** |
-| Wait for CI | **ON** (deploy only after GitHub checks pass) |
-| Production service | Leave disconnected or autodeploy **OFF** for now |
+| Autodeploy | **OFF** |
+| Wait for CI | **OFF** (not used while autodeploy is off) |
+| Deploy trigger | **Manual** after merge to `*_staging` (Railway Dashboard → Deploy, or CLI) |
 
-After merge to `*_staging`, Railway should wait for the `ci` check (and any other required checks) before building and deploying.
+CI still runs on push to `*_staging`; deploy is a separate manual step once checks are green.
+
+### Railway Production (backend + frontend services)
+
+Apply to **both** Railway production services:
+
+| Setting | Value |
+|---------|--------|
+| Connected branch | `main` (both repos) |
+| Autodeploy | **ON** |
+| Wait for CI | **ON** (deploy only after GitHub `ci` check passes) |
+
+After merge to `main`, Railway waits for required checks, then builds and deploys automatically.
 
 ### GitHub branch protection
 
@@ -120,12 +138,11 @@ Frontend PRs into `frontend_staging` / `main` run E2E via the frontend repo work
 
 ### Out of scope (this phase)
 
-- Railway Production autodeploy from `main`
 - Renaming `devlope` → `develop`
 - Collapsing backend and frontend into one monorepo
 - Removing Render Blueprint config (docs updated; infra migration is separate)
 
 ## Further reading
 
-- [`docs/DEPLOY.md`](DEPLOY.md) — backend Railway staging
+- [`docs/DEPLOY.md`](DEPLOY.md) — backend Railway staging and production
 - Frontend sync: `TorBook122/frontend` → `docs/SYNC.md`

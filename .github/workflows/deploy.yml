@@ -1,12 +1,13 @@
 # Backend deploy is handled by Railway (not this workflow).
 #
-# Flow (this phase):
-# - backend_staging → Railway Staging: autodeploy ON, Wait for CI ON
-# - main → CI + e2e only; Railway Production autodeploy OFF (deferred)
+# Flow:
+# - backend_staging → Railway Staging: autodeploy OFF — manual deploy after merge
+# - main → Railway Production: autodeploy ON, Wait for CI ON
 #
 # CI (ci.yml) runs on push/PR to backend_devlope, backend_staging, main.
 # E2E (e2e.yml) is soft on PRs to backend_devlope; required on staging/main.
-# After merge to backend_staging, Railway waits for CI green before deploying.
+# After merge to backend_staging, run deploy manually on Railway once CI is green.
+# After merge to main, Railway auto-deploys when CI passes.
 
 name: Deploy
 
@@ -19,6 +20,6 @@ jobs:
     steps:
       - name: Railway deploy reminder
         run: |
-          echo "backend_staging: CI + e2e → Railway Staging (Wait for CI, autodeploy ON)"
-          echo "main: CI + e2e only — Railway Production deploy deferred"
+          echo "backend_staging: CI + e2e → manual Railway Staging deploy (autodeploy OFF)"
+          echo "main: CI + e2e → Railway Production auto-deploy (Wait for CI ON)"
           echo "See docs/GIT_WORKFLOW.md for branch flow and dashboard checklist"

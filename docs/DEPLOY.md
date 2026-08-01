@@ -2,9 +2,9 @@
 
 Master reference for local development and production deployment. Authoritative Docker config lives in [`Dockerfile`](../Dockerfile) and [`docker-compose.yml`](../docker-compose.yml).
 
-**Staging (this phase):** Railway, branch `backend_staging`, autodeploy ON, **Wait for CI** ON. See [`docs/GIT_WORKFLOW.md`](GIT_WORKFLOW.md).
+**Staging:** Railway, branch `backend_staging`, **autodeploy OFF** — deploy manually after merge. See [`docs/GIT_WORKFLOW.md`](GIT_WORKFLOW.md).
 
-**Production:** `main` is the git production line (CI + e2e gated); Railway Production autodeploy is deferred.
+**Production:** Railway, branch `main`, autodeploy ON, **Wait for CI** ON.
 
 ## Architecture
 
@@ -100,12 +100,21 @@ Copy [`.env.example`](../.env.example) to `.env`. Never commit `.env`. Placehold
 ### Service setup
 
 1. Railway project → connect **TorBook122/backend**, branch **`backend_staging`**
-2. Enable **Autodeploy** and **Wait for CI** (deploy only after GitHub `ci` check passes)
+2. Set **Autodeploy OFF** — trigger deploy manually from the Railway Dashboard (or CLI) after merge to `backend_staging`
 3. Use the same [`Dockerfile`](../Dockerfile) as local Docker / Render
 4. Attach managed Postgres and Redis (or external URLs in env vars)
 5. Set all secrets from the matrix below; set `CORS_ORIGIN` to the Railway frontend staging origin
 
-After merge to `backend_staging`, GitHub runs `ci` (+ `e2e` on PRs). Railway waits for required checks, then builds and deploys.
+After merge to `backend_staging`, GitHub runs `ci` (+ `e2e` on PRs). When checks are green, **manually deploy** the staging service on Railway.
+
+## Railway production
+
+1. Railway project → connect **TorBook122/backend**, branch **`main`**
+2. Enable **Autodeploy** and **Wait for CI** (deploy only after GitHub `ci` check passes)
+3. Same Dockerfile and env matrix as staging, with production URLs and secrets
+4. Set `CORS_ORIGIN` to the Railway frontend production origin
+
+After merge to `main`, Railway waits for required checks, then builds and deploys automatically.
 
 ### Verify staging
 
