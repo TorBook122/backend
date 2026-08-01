@@ -5,6 +5,13 @@ export class CalendarPage {
 
   async goto(): Promise<void> {
     await this.page.goto('/calendar');
+    await this.waitForLoaded();
+  }
+
+  /** Waits for the calendar loading snackbar to finish (if shown). */
+  async waitForLoaded(): Promise<void> {
+    const loading = this.page.getByRole('status').filter({ hasText: 'טוען מידע...' });
+    await loading.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => undefined);
   }
 
   heading(): ReturnType<Page['getByRole']> {

@@ -66,7 +66,6 @@ export async function sendWhatsAppMessage(
   contentSid?: string,
 ): Promise<void> {
   const to = `whatsapp:${toWhatsAppE164(toDigits)}`;
-  const from = process.env.TWILIO_WHATSAPP_FROM!.trim();
 
   if (isWhatsAppLogOnlyMode()) {
     // eslint-disable-next-line no-console
@@ -78,6 +77,8 @@ export async function sendWhatsAppMessage(
     });
     return;
   }
+
+  const from = process.env.TWILIO_WHATSAPP_FROM!.trim();
 
   const twilio = await import('twilio');
   const client = twilio.default(

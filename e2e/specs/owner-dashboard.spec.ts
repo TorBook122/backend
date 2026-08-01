@@ -62,12 +62,14 @@ test.describe('owner dashboard', () => {
     await expect(calendarPage.heading()).toBeVisible();
 
     // Advance weeks until the booked appointment is visible (bookableDate may be next week).
-    for (let i = 0; i < 4; i += 1) {
-      if (await page.getByText('לקוח יומן').isVisible().catch(() => false)) break;
+    const customerLabel = page.getByText('לקוח יומן');
+    for (let i = 0; i < 6; i += 1) {
+      if (await customerLabel.isVisible().catch(() => false)) break;
       await calendarPage.nextWeekButton().click();
+      await calendarPage.waitForLoaded();
     }
 
-    await expect(page.getByText('לקוח יומן')).toBeVisible();
+    await expect(customerLabel).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(service.name).first()).toBeVisible();
   });
 

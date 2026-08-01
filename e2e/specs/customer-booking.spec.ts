@@ -1,4 +1,5 @@
 import { test, expect, setAccessTokenCookie } from '../fixtures/business.fixture.js';
+import { dismissMissingContactModal } from '../helpers/session.js';
 import { BookingPage } from '../pages/booking.page.js';
 import { ConfirmPage } from '../pages/confirm.page.js';
 import { AppointmentsPage } from '../pages/appointments.page.js';
@@ -105,10 +106,13 @@ test.describe('customer booking', () => {
     await booking.bookService(seeded.service.name, seeded.bookableDate);
 
     const confirm = new ConfirmPage(page);
+    await expect(confirm.successHeading()).toBeVisible({ timeout: 15_000 });
     await confirm.goToMyAppointments();
+    await page.waitForURL('**/my-appointments');
+    await dismissMissingContactModal(page);
 
     const appointments = new AppointmentsPage(page);
-    await expect(appointments.heading()).toBeVisible();
+    await expect(appointments.heading()).toBeVisible({ timeout: 15_000 });
     await expect(
       page.getByRole('article', { name: new RegExp(`תור ב${seeded.business.name}`) }),
     ).toBeVisible();

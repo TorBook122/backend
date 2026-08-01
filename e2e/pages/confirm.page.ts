@@ -8,7 +8,10 @@ export class ConfirmPage {
   }
 
   async goToMyAppointments(): Promise<void> {
-    await this.page.getByRole('link', { name: 'לתורים שלי' }).click();
+    await Promise.all([
+      this.page.waitForURL(/\/my-appointments(?:\/|$)/),
+      this.page.getByRole('link', { name: 'לתורים שלי' }).click(),
+    ]);
   }
 
   appointmentDetails(): ReturnType<Page['locator']> {
