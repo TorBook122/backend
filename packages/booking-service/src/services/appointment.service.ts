@@ -47,7 +47,7 @@ function toAppointmentDto(
     status: string;
     business: { name: string; slug: string; cancellationWindowHours?: number };
     service: { name: string; durationMins: number };
-    customer?: { name: string; phoneEnc?: string; emailEnc?: string | null };
+    customer?: { name: string; phoneEnc?: string; emailEnc?: string | null; avatarUrl?: string | null };
   },
 ): AppointmentDto {
   return {
