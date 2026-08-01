@@ -8,7 +8,7 @@ export class CalendarPage {
   }
 
   heading(): ReturnType<Page['getByRole']> {
-    return this.page.getByRole('heading', { name: 'יומן' });
+    return this.page.getByRole('heading', { name: 'יומן תורים' });
   }
 
   nextWeekButton(): ReturnType<Page['getByRole']> {

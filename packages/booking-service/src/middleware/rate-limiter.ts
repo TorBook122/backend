@@ -26,6 +26,12 @@ type RateLimiterOptions = {
 export function createRateLimiter({ keyPrefix, max, windowSeconds }: RateLimiterOptions) {
   return async function rateLimiter(req: Request, _res: Response, next: NextFunction) {
     try {
+      const flag = process.env.E2E_DISABLE_RATE_LIMIT;
+      if (flag === '1' || flag === 'true') {
+        next();
+        return;
+      }
+
       const userId = (req as AuthenticatedRequest).userId;
       const identity = userId ? `user:${userId}` : `ip:${getClientIp(req)}`;
       const key = `ratelimit:${keyPrefix}:${identity}`;

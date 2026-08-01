@@ -1,13 +1,7 @@
 import { test, expect, hydrateAuthSession } from '../fixtures/business.fixture.js';
 import { AppointmentsPage } from '../pages/appointments.page.js';
-import {
-  bookAppointmentViaApi,
-  registerCustomer,
-} from '../helpers/seed-via-api.js';
-import {
-  createConfirmedAppointment,
-  hoursFromNow,
-} from '../helpers/appointment-factory.js';
+import { bookAppointmentViaApi, registerCustomer } from '../helpers/seed-via-api.js';
+import { createConfirmedAppointment, hoursFromNow } from '../helpers/appointment-factory.js';
 
 test.describe('customer appointments', () => {
   test('list shows booked appointment', async ({ page, seedBusiness }) => {
@@ -24,9 +18,15 @@ test.describe('customer appointments', () => {
   });
 
   test('cancel within window removes appointment', async ({ page, seedBusiness }) => {
-    const { business, service, bookableDate } = await seedBusiness();
+    const { business, service } = await seedBusiness();
     const customer = await registerCustomer();
-    await bookAppointmentViaApi(customer, business.slug, service.id, bookableDate);
+    // Must be outside the default 24h cancellation window for an immediate cancel.
+    await createConfirmedAppointment({
+      businessId: business.id,
+      customerId: customer.id,
+      serviceId: service.id,
+      startsAt: hoursFromNow(48),
+    });
 
     await hydrateAuthSession(page, customer.accessToken);
     const appointmentsPage = new AppointmentsPage(page);

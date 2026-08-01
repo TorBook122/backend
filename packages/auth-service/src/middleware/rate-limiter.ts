@@ -14,6 +14,12 @@ import {
 import { getRedis } from '../lib/redis.js';
 import { AppError } from '../utils/app-error.js';
 
+/** E2E stacks set this so registration/login fixtures are not capped by IP windows. */
+function isE2eRateLimitDisabled(): boolean {
+  const flag = process.env.E2E_DISABLE_RATE_LIMIT;
+  return flag === '1' || flag === 'true';
+}
+
 function getClientIp(req: Request): string {
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim() ?? req.ip;
@@ -29,6 +35,11 @@ function accountKeyFor(req: Request): string | null {
 
 export async function loginRateLimiter(req: Request, _res: Response, next: NextFunction) {
   try {
+    if (isE2eRateLimitDisabled()) {
+      next();
+      return;
+    }
+
     const ip = getClientIp(req);
     const redis = getRedis();
 
@@ -85,6 +96,11 @@ export async function clearLoginFailures(req: Request): Promise<void> {
 
 export async function registerRateLimiter(req: Request, _res: Response, next: NextFunction) {
   try {
+    if (isE2eRateLimitDisabled()) {
+      next();
+      return;
+    }
+
     const ip = getClientIp(req);
     const key = `register_attempt:${ip}`;
     const redis = getRedis();
@@ -111,6 +127,11 @@ async function recordRegisterAttempt(req: Request): Promise<void> {
 
 export async function forgotPasswordRateLimiter(req: Request, _res: Response, next: NextFunction) {
   try {
+    if (isE2eRateLimitDisabled()) {
+      next();
+      return;
+    }
+
     const ip = getClientIp(req);
     const key = `pwd_reset_req:${ip}`;
     const redis = getRedis();
@@ -136,6 +157,11 @@ export async function recordForgotPasswordRequest(req: Request): Promise<void> {
 
 export async function resetPasswordRateLimiter(req: Request, _res: Response, next: NextFunction) {
   try {
+    if (isE2eRateLimitDisabled()) {
+      next();
+      return;
+    }
+
     const ip = getClientIp(req);
     const key = `pwd_reset_fail:${ip}`;
     const redis = getRedis();

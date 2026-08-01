@@ -122,6 +122,7 @@ jobs:
           NODE_ENV=${NODE_ENV}
           CORS_ORIGIN=${CORS_ORIGIN}
           PORT=${PORT}
+          E2E_DISABLE_RATE_LIMIT=1
           EOF
 
       - name: Install Playwright browsers

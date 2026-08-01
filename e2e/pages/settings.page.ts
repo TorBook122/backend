@@ -14,7 +14,7 @@ export class SettingsPage {
   }
 
   async waitForLoaded(): Promise<void> {
-    await this.heading().waitFor({ state: 'visible' });
+    await this.heading().waitFor({ state: 'visible', timeout: 20_000 });
   }
 
   hoursEditor(): ReturnType<Page['getByLabel']> {

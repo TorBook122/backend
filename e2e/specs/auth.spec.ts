@@ -1,4 +1,4 @@
-import { test, expect, getAccessTokenCookie } from '../fixtures/auth.fixture.js';
+import { test, expect, getAccessTokenCookie, dismissMissingContactModal } from '../fixtures/auth.fixture.js';
 import { uniqueTestUser } from '../helpers/credentials.js';
 import { registerCustomer as registerCustomerViaApi } from '../helpers/seed-via-api.js';
 
@@ -51,6 +51,7 @@ test.describe('auth', () => {
     await loginPage.goto();
     await loginPage.login(credentials.email, credentials.password);
     await page.waitForURL('**/my-appointments');
+    await dismissMissingContactModal(page);
 
     await page.getByRole('button', { name: 'יציאה מהמערכת' }).click();
     await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });

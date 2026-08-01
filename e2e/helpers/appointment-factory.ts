@@ -16,6 +16,7 @@ export function hoursFromNow(hours: number): Date {
   return new Date(Date.now() + hours * 60 * 60 * 1000);
 }
 
+/** Next future occurrence of `hour:00` in the host local timezone (within 7 days). */
 export function todayAtHour(hour: number): Date {
   const date = new Date();
   date.setSeconds(0, 0);
@@ -25,6 +26,11 @@ export function todayAtHour(hour: number): Date {
     date.setHours(hour, 0, 0, 0);
   }
   return date;
+}
+
+/** Format a Date as UTC wall-clock for Prisma `timestamp without time zone` columns. */
+function toUtcTimestamp(date: Date): string {
+  return date.toISOString().replace('T', ' ').replace('Z', '');
 }
 
 export async function createConfirmedAppointment(params: {
@@ -42,6 +48,8 @@ export async function createConfirmedAppointment(params: {
   await client.connect();
 
   try {
+    // Avoid Date objects — node-pg converts them with the host local timezone, which
+    // makes past appointments look like they are still in the future vs NOW() (UTC).
     const result = await client.query<{ id: string }>(
       `
         INSERT INTO "Appointment" (
@@ -60,15 +68,21 @@ export async function createConfirmedAppointment(params: {
           $1,
           $2,
           $3,
-          $4,
-          $5,
+          $4::timestamp,
+          $5::timestamp,
           'CONFIRMED',
           NOW(),
           NOW()
         )
         RETURNING id
       `,
-      [params.businessId, params.customerId, params.serviceId, startsAt, endsAt],
+      [
+        params.businessId,
+        params.customerId,
+        params.serviceId,
+        toUtcTimestamp(startsAt),
+        toUtcTimestamp(endsAt),
+      ],
     );
 
     return result.rows[0];

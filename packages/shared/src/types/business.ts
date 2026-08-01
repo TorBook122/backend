@@ -94,6 +94,7 @@ export type AppointmentDto = {
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
+  customerAvatarUrl?: string | null;
   cancellationWindowHours?: number;
 };
 

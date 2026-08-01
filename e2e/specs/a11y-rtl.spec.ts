@@ -3,6 +3,7 @@ import { test, expect, hydrateAuthSession } from '../fixtures/business.fixture.j
 import { LoginPage } from '../pages/login.page.js';
 import { BookingPage } from '../pages/booking.page.js';
 import { DashboardPage } from '../pages/dashboard.page.js';
+import { registerCustomer } from '../helpers/seed-via-api.js';
 
 async function expectNoCriticalViolations(page: import('@playwright/test').Page): Promise<void> {
   const results = await new AxeBuilder({ page })
@@ -25,7 +26,7 @@ test.describe('accessibility and RTL', () => {
     await loginPage.goto();
 
     await expect(page.getByText('אימייל או טלפון')).toBeVisible();
-    await expect(page.getByText('סיסמה')).toBeVisible();
+    await expect(page.getByText('סיסמה', { exact: true })).toBeVisible();
     await expect(page.getByPlaceholder('youremail@example.com')).toBeVisible();
   });
 
@@ -34,27 +35,30 @@ test.describe('accessibility and RTL', () => {
     seedBusiness,
   }) => {
     const { owner, business, bookableDate } = await seedBusiness();
+    const customer = await registerCustomer();
 
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await expectNoCriticalViolations(page);
 
-    await hydrateAuthSession(page, owner.accessToken);
+    await hydrateAuthSession(page, customer.accessToken);
     const bookingPage = new BookingPage(page);
     await bookingPage.goto(business.slug);
     await bookingPage.selectService('תספורת');
     await bookingPage.pickDate(bookableDate);
     await expectNoCriticalViolations(page);
 
+    await hydrateAuthSession(page, owner.accessToken);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await expectNoCriticalViolations(page);
   });
 
   test('booking flow supports keyboard navigation', async ({ page, seedBusiness }) => {
-    const { owner, business, bookableDate } = await seedBusiness();
+    const { business, bookableDate } = await seedBusiness();
+    const customer = await registerCustomer();
 
-    await hydrateAuthSession(page, owner.accessToken);
+    await hydrateAuthSession(page, customer.accessToken);
     const bookingPage = new BookingPage(page);
     await bookingPage.goto(business.slug);
 
@@ -63,11 +67,8 @@ test.describe('accessibility and RTL', () => {
     await expect(serviceButton).toBeFocused();
     await page.keyboard.press('Enter');
 
-    const dateInput = page.locator('input[type="date"]');
-    await expect(dateInput).toBeVisible();
-    await dateInput.focus();
-    await expect(dateInput).toBeFocused();
-    await dateInput.fill(bookableDate);
+    await expect(page.getByRole('heading', { name: 'בחירת תאריך' })).toBeVisible();
+    await bookingPage.pickDate(bookableDate);
 
     const slot = page
       .getByRole('listbox', { name: 'שעות פנויות' })

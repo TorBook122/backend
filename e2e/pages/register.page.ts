@@ -24,7 +24,7 @@ export class RegisterPage {
   }
 
   async submitAsOwner(): Promise<void> {
-    await this.page.getByRole('button', { name: 'הרשמה ← הגדרת העסק' }).click();
+    await this.page.getByRole('button', { name: 'הרשמה והגדרת העסק' }).click();
   }
 
   async submitAsCustomer(): Promise<void> {

@@ -28,16 +28,16 @@ test.describe('employee roles and permissions', () => {
     await expect(employeesPage.rolesPanelHeading()).toBeVisible();
 
     await employeesPage.roleNameInput().fill('קבלה');
-    await employeesPage.permissionCheckbox('צפייה ברשימת התורים הקרובים').check();
+    await employeesPage.permissionCheckbox('צפייה ביומן עסק בלבד').check();
     await employeesPage.addRoleButton().click();
     await expect(page.getByRole('status').filter({ hasText: 'התפקיד נוצר' })).toBeVisible();
     await expect(page.getByText('קבלה')).toBeVisible();
     await expect(page.getByText('1 הרשאות')).toBeVisible();
 
     await employeesPage.addEmployeeButton().click();
-    await page.getByLabel('שם מלא').fill('דנה עובדת');
-    await page.getByLabel('טלפון').fill(`050${String(Date.now()).slice(-7)}`);
-    await page.getByLabel('אימייל').fill(`employee-ui-${Date.now()}@e2e.test`);
+    await page.getByRole('textbox', { name: 'שם מלא' }).fill('דנה עובדת');
+    await page.getByRole('textbox', { name: 'טלפון' }).fill(`050${String(Date.now()).slice(-7)}`);
+    await page.getByRole('textbox', { name: 'אימייל' }).fill(`employee-ui-${Date.now()}@e2e.test`);
     await employeesPage.employeeRoleSelect().selectOption({ label: 'קבלה (1 הרשאות)' });
     await employeesPage.saveEmployeeButton().click();
 

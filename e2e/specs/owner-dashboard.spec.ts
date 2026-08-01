@@ -2,12 +2,8 @@ import { test, expect, hydrateAuthSession } from '../fixtures/business.fixture.j
 import { DashboardPage } from '../pages/dashboard.page.js';
 import { CalendarPage } from '../pages/calendar.page.js';
 import { SettingsPage } from '../pages/settings.page.js';
-import {
-  createConfirmedAppointment,
-  hoursFromNow,
-  todayAtHour,
-} from '../helpers/appointment-factory.js';
-import { registerCustomer } from '../helpers/seed-via-api.js';
+import { createConfirmedAppointment, hoursFromNow } from '../helpers/appointment-factory.js';
+import { bookAppointmentViaApi, registerCustomer } from '../helpers/seed-via-api.js';
 
 test.describe('owner dashboard', () => {
   test('dashboard loads for owner with business', async ({ page, seedBusiness }) => {
@@ -19,8 +15,8 @@ test.describe('owner dashboard', () => {
 
     await expect(dashboardPage.heading()).toBeVisible();
     await expect(dashboardPage.calendarLink()).toBeVisible();
-    await expect(dashboardPage.statCard('סה״כ תורים')).toBeVisible();
-    await expect(dashboardPage.statCard('תורים היום')).toBeVisible();
+    await expect(dashboardPage.statCard('סה״כ תורים בכל הזמנים')).toBeVisible();
+    await expect(dashboardPage.statCard('סה״כ תורים היום')).toBeVisible();
     await expect(dashboardPage.statCard('התור הקרוב')).toBeVisible();
     await expect(dashboardPage.statCard('שעות עבודה היום')).toBeVisible();
   });
@@ -44,33 +40,35 @@ test.describe('owner dashboard', () => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
 
-    await expect(dashboardPage.statCard('סה״כ תורים')).toBeVisible();
+    await expect(dashboardPage.statCard('סה״כ תורים בכל הזמנים')).toBeVisible();
     await expect(dashboardPage.statCard('התור הקרוב')).toBeVisible();
-    await expect(page.getByText('לקוח לוח בקרה')).toBeVisible();
+    await expect(page.getByText('לקוח לוח בקרה').first()).toBeVisible();
     await expect(page.getByText('0501234567')).toBeVisible();
     await expect(page.getByText('dashboard-customer@example.com')).toBeVisible();
     await expect(dashboardPage.todaySection()).toBeVisible();
-    await expect(page.getByText(service.name)).toBeVisible();
+    await expect(page.getByText(service.name).first()).toBeVisible();
   });
 
   test('calendar shows today appointment', async ({ page, seedBusiness }) => {
-    const { owner, business, service } = await seedBusiness();
+    const { owner, business, service, bookableDate } = await seedBusiness();
     const customer = await registerCustomer({ name: 'לקוח יומן' });
 
-    await createConfirmedAppointment({
-      businessId: business.id,
-      customerId: customer.id,
-      serviceId: service.id,
-      startsAt: todayAtHour(10),
-    });
+    // Book through the API so startsAt matches Jerusalem timezone handling in the calendar.
+    await bookAppointmentViaApi(customer, business.slug, service.id, bookableDate);
 
     await hydrateAuthSession(page, owner.accessToken);
     const calendarPage = new CalendarPage(page);
     await calendarPage.goto();
-
     await expect(calendarPage.heading()).toBeVisible();
-    await expect(calendarPage.appointmentText('לקוח יומן')).toBeVisible();
-    await expect(calendarPage.appointmentText(service.name)).toBeVisible();
+
+    // Advance weeks until the booked appointment is visible (bookableDate may be next week).
+    for (let i = 0; i < 4; i += 1) {
+      if (await page.getByText('לקוח יומן').isVisible().catch(() => false)) break;
+      await calendarPage.nextWeekButton().click();
+    }
+
+    await expect(page.getByText('לקוח יומן')).toBeVisible();
+    await expect(page.getByText(service.name).first()).toBeVisible();
   });
 
   test('owner can block an hour on the calendar', async ({ page, seedBusiness }) => {
@@ -80,8 +78,9 @@ test.describe('owner dashboard', () => {
     const calendarPage = new CalendarPage(page);
     await calendarPage.goto();
 
-    const emptyCell = page.getByRole('button', { name: 'לחצו לחסימת שעה' }).first();
+    const emptyCell = page.locator('button[title="לחצו לפעולות"]').first();
     await emptyCell.click();
+    await page.getByRole('menuitem', { name: 'חסימת שעה ידנית' }).click();
 
     await expect(calendarPage.heading()).toBeVisible();
   });
@@ -92,8 +91,8 @@ test.describe('owner dashboard', () => {
     await hydrateAuthSession(page, owner.accessToken);
     const settingsPage = new SettingsPage(page);
     await settingsPage.goto();
+    await settingsPage.waitForLoaded();
 
-    await expect(settingsPage.heading()).toBeVisible();
     await settingsPage.deactivateAllDays();
     await expect(settingsPage.breaksHelperText()).toBeVisible();
   });

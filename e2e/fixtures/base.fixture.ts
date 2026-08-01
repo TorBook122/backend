@@ -1,5 +1,6 @@
 import { test as base, expect } from '@playwright/test';
 import { resetDatabase } from '../helpers/db-reset.js';
+import { clearRateLimitKeys } from '../helpers/redis-reset.js';
 
 const resetFiles = new Set<string>();
 
@@ -11,7 +12,7 @@ export const test = base.extend<BaseFixtures>({
   autoResetDb: [
     async ({}, use, testInfo) => {
       if (!resetFiles.has(testInfo.file)) {
-        await resetDatabase();
+        await Promise.all([resetDatabase(), clearRateLimitKeys()]);
         resetFiles.add(testInfo.file);
       }
       await use();

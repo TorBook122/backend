@@ -1,6 +1,11 @@
 import { test as baseTest, expect } from './base.fixture.js';
 import { uniqueTestUser, type TestUserCredentials } from '../helpers/credentials.js';
-import { getAccessTokenCookie, hydrateAuthSession, setAccessTokenCookie } from '../helpers/session.js';
+import {
+  dismissMissingContactModal,
+  getAccessTokenCookie,
+  hydrateAuthSession,
+  setAccessTokenCookie,
+} from '../helpers/session.js';
 import { LoginPage } from '../pages/login.page.js';
 import { RegisterPage } from '../pages/register.page.js';
 
@@ -53,4 +58,10 @@ export const test = baseTest.extend<AuthFixtures>({
   },
 });
 
-export { expect, setAccessTokenCookie, getAccessTokenCookie, hydrateAuthSession };
+export {
+  expect,
+  setAccessTokenCookie,
+  getAccessTokenCookie,
+  hydrateAuthSession,
+  dismissMissingContactModal,
+};

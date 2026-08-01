@@ -32,6 +32,8 @@ async function shutdown(apiServer: ReturnType<typeof createServer>): Promise<voi
 
 async function main(): Promise<void> {
   process.env.NODE_ENV = process.env.NODE_ENV ?? 'development';
+  // E2E seeds dozens of users from localhost — skip IP auth/booking rate windows.
+  process.env.E2E_DISABLE_RATE_LIMIT = process.env.E2E_DISABLE_RATE_LIMIT ?? '1';
   // E2E runs without LocalStack — force log-only queue so booking/cancel do not hit SQS.
   process.env.AWS_ENDPOINT_URL = '';
   process.env.AWS_SQS_QUEUE_URL = '';

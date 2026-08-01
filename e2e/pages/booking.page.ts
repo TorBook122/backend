@@ -12,7 +12,27 @@ export class BookingPage {
   }
 
   async pickDate(date: string): Promise<void> {
-    await this.page.locator('input[type="date"]').fill(date);
+    const [year, month, day] = date.split('-').map(Number);
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    await this.page.getByRole('heading', { name: 'בחירת תאריך' }).waitFor({ state: 'visible' });
+
+    let monthsDiff =
+      (year - today.getFullYear()) * 12 + (month - 1 - today.getMonth());
+
+    while (monthsDiff > 0) {
+      await this.page.getByRole('button', { name: 'חודש הבא' }).click();
+      monthsDiff -= 1;
+    }
+    while (monthsDiff < 0) {
+      await this.page.getByRole('button', { name: 'חודש קודם' }).click();
+      monthsDiff += 1;
+    }
+
+    const dayButton = this.page.getByRole('button', { name: String(day), exact: true });
+    await dayButton.waitFor({ state: 'visible' });
+    await dayButton.click();
   }
 
   async pickFirstAvailableSlot(): Promise<string> {

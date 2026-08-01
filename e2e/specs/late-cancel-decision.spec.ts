@@ -7,21 +7,19 @@ import {
   registerCustomer,
   type SeededOwnerBusiness,
 } from '../helpers/seed-via-api.js';
-import {
-  createConfirmedAppointment,
-  todayAtHour,
-} from '../helpers/appointment-factory.js';
+import { createConfirmedAppointment, hoursFromNow } from '../helpers/appointment-factory.js';
 
 const PENDING_CUSTOMER_NAME = 'לקוח ביטול מאוחר';
 
 async function seedPendingLateCancel(seedBusiness: () => Promise<SeededOwnerBusiness>) {
   const { business, service, owner } = await seedBusiness();
   const customer = await registerCustomer({ name: PENDING_CUSTOMER_NAME });
+  // Inside the default 24h window so cancel becomes PENDING_OWNER_DECISION.
   const appointment = await createConfirmedAppointment({
     businessId: business.id,
     customerId: customer.id,
     serviceId: service.id,
-    startsAt: todayAtHour(10),
+    startsAt: hoursFromNow(2),
   });
 
   const cancelled = await cancelAppointmentViaApi(customer, appointment.id);
@@ -30,13 +28,33 @@ async function seedPendingLateCancel(seedBusiness: () => Promise<SeededOwnerBusi
   return { business, service, owner, customer, appointmentId: appointment.id };
 }
 
+async function openCalendarOnAppointment(
+  page: import('@playwright/test').Page,
+  calendarPage: CalendarPage,
+): Promise<void> {
+  await calendarPage.goto();
+  await expect(calendarPage.heading()).toBeVisible();
+
+  // Wait for appointments to load before navigating weeks (avoids racing an empty grid).
+  for (let i = 0; i < 4; i += 1) {
+    try {
+      await page.getByText(PENDING_CUSTOMER_NAME).waitFor({ state: 'visible', timeout: 5_000 });
+      return;
+    } catch {
+      await calendarPage.nextWeekButton().click();
+    }
+  }
+
+  await expect(page.getByText(PENDING_CUSTOMER_NAME)).toBeVisible();
+}
+
 test.describe('late cancel owner decision', () => {
   test('owner approves late cancel from calendar', async ({ page, seedBusiness }) => {
-    const { business, owner, customer, appointmentId } = await seedPendingLateCancel(seedBusiness);
+    const { owner, customer, appointmentId } = await seedPendingLateCancel(seedBusiness);
 
     await hydrateAuthSession(page, owner.accessToken);
     const calendarPage = new CalendarPage(page);
-    await calendarPage.goto();
+    await openCalendarOnAppointment(page, calendarPage);
 
     await expect(calendarPage.pendingLateCancelLabel()).toBeVisible();
     await calendarPage.openAppointmentMenu(PENDING_CUSTOMER_NAME);
@@ -54,7 +72,7 @@ test.describe('late cancel owner decision', () => {
 
     await hydrateAuthSession(page, owner.accessToken);
     const calendarPage = new CalendarPage(page);
-    await calendarPage.goto();
+    await openCalendarOnAppointment(page, calendarPage);
 
     await expect(calendarPage.pendingLateCancelLabel()).toBeVisible();
     await calendarPage.openAppointmentMenu(PENDING_CUSTOMER_NAME);

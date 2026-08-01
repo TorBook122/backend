@@ -5,6 +5,12 @@ export class DashboardPage {
 
   async goto(): Promise<void> {
     await this.page.goto('/dashboard');
+    await this.waitForLoaded();
+  }
+
+  async waitForLoaded(): Promise<void> {
+    await this.heading().waitFor({ state: 'visible', timeout: 20_000 });
+    await this.statCard('סה״כ תורים בכל הזמנים').waitFor({ state: 'visible', timeout: 20_000 });
   }
 
   heading(): ReturnType<Page['getByRole']> {
@@ -20,6 +26,6 @@ export class DashboardPage {
   }
 
   calendarLink(): ReturnType<Page['getByRole']> {
-    return this.page.getByRole('link', { name: 'יומן תורים' });
+    return this.page.getByRole('link', { name: 'יומן בעל עסק' });
   }
 }

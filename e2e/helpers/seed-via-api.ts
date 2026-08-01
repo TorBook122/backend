@@ -228,9 +228,14 @@ export async function seedOwnerWithBusiness(
   await parseJson(availabilityResponse);
 
   const withService = overrides.withService !== false;
+  const completeOnboarding = overrides.completeOnboarding !== false;
   let serviceBody: ApiSuccess<ServiceData> | null = null;
 
-  if (withService) {
+  // Onboarding completion requires at least one visible service. When the caller wants
+  // a business with no public services, create a temporary one, finish onboarding, then hide it.
+  const needsTemporaryService = !withService && completeOnboarding;
+
+  if (withService || needsTemporaryService) {
     const serviceResponse = await session.withCsrf(
       `/api/v1/businesses/${businessBody.data.id}/services`,
       {
@@ -246,13 +251,22 @@ export async function seedOwnerWithBusiness(
     serviceBody = await parseJson<ApiSuccess<ServiceData>>(serviceResponse);
   }
 
-  if (overrides.completeOnboarding !== false) {
+  if (completeOnboarding) {
     const onboardingResponse = await session.withCsrf('/api/v1/businesses/onboarding/complete', {
       method: 'POST',
       headers: authHeaders(accessToken),
       body: JSON.stringify({}),
     });
     await parseJson(onboardingResponse);
+  }
+
+  if (needsTemporaryService && serviceBody) {
+    const hideResponse = await session.withCsrf(`/api/v1/services/${serviceBody.data.id}`, {
+      method: 'DELETE',
+      headers: authHeaders(accessToken),
+    });
+    await parseJson(hideResponse);
+    serviceBody = null;
   }
 
   const loginResponse = await session.withCsrf('/api/v1/auth/login', {

@@ -22,4 +22,10 @@ export const test = baseTest.extend<BusinessFixtures>({
   },
 });
 
-export { expect, setAccessTokenCookie, getAccessTokenCookie, hydrateAuthSession } from './auth.fixture.js';
+export {
+  expect,
+  setAccessTokenCookie,
+  getAccessTokenCookie,
+  hydrateAuthSession,
+  dismissMissingContactModal,
+} from './auth.fixture.js';

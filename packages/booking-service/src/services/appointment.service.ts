@@ -62,7 +62,12 @@ function toAppointmentDto(
     endsAt: apt.endsAt.toISOString(),
     status: apt.status,
     ...(apt.customerId ? { customerId: apt.customerId } : {}),
-    ...(apt.customer ? { customerName: apt.customer.name } : {}),
+    ...(apt.customer
+      ? {
+          customerName: apt.customer.name,
+          customerAvatarUrl: apt.customer.avatarUrl ?? null,
+        }
+      : {}),
     ...(apt.business.cancellationWindowHours !== undefined
       ? { cancellationWindowHours: apt.business.cancellationWindowHours }
       : {}),
@@ -709,7 +714,7 @@ export async function getBusinessAppointments(
     include: {
       business: { select: { name: true, slug: true } },
       service: { select: { name: true, durationMins: true } },
-      customer: { select: { name: true, phoneEnc: true, emailEnc: true } },
+      customer: { select: { name: true, phoneEnc: true, emailEnc: true, avatarUrl: true } },
     },
     orderBy: { startsAt: 'asc' },
   });
