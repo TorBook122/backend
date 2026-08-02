@@ -40,6 +40,7 @@ All variables are set on the unified `torbook` service (Render) or `.env` locall
 | `TWILIO_WHATSAPP_CONTENT_SID_LATE_CANCEL_REJECTED_CUSTOMER` | no | Late cancel rejected → customer. Meta template: `kvator_late_cancel_rejected_to_user`. Body: `שלום {{name}}, בקשתך לביטול תור ל{{service}} ב{{business}} בתאריך {{date}} בשעה {{time}} נדחתה על ידי בעל העסק. התור נשאר בתוקף. לפרטים נוספים היכנס/י לאפליקציה.` |
 | `TWILIO_WHATSAPP_CONTENT_SID_BUSINESS_CANCEL_CUSTOMER` | no | Business cancel → customer. Body: `התור שלך ל{{service}} בעסק {{business}} בתאריך {{date}} ובשעה {{time}} בוטל על ידי בעל העסק. לפרטים התקשר {{business_phone}}.` |
 | `TWILIO_WHATSAPP_CONTENT_SID_NEW_COMMENT` | no | New public-page comment → business owner. Body: `שלום {{name}}, התקבלה תגובה חדשה בדף העסק הציבורי שלך. היכנס https://kvator.co.il כדי לצפות בה.` |
+| `TWILIO_WHATSAPP_CONTENT_SID_NEGATIVE_COMMENT` | no | Negative public-page comment → business owner (in addition to `new_comment`). Body: `שלום {{name}}, המערכת זיהתה כי התגובה האחרונה שקיבלת בתאריך {{date}} לשירות {{service}} הינה שלילית. היכנס ל{{business_url}} וצפה בפרטים.` |
 | `TWILIO_WHATSAPP_CONTENT_SID_PASSWORD_RESET` | no | Password reset OTP → user phone. Body: `שלום {{name}}, קוד האימות לשינוי הסיסמה הינו {{code}}. המשך יום טוב, Kvator!` |
 | `DB_SERVICE_URL` | auto | set by monolith on loopback |
 

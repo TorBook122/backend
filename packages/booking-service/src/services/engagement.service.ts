@@ -1,9 +1,11 @@
 import {
   API_ERROR_CODES,
   BUSINESS_CATEGORIES,
+  CommentSentiment,
   analyzeCommentSentiment,
   COMMENT_PROFANITY_ERROR,
   containsProfanity,
+  toJerusalemDateString,
   type BusinessCommentDto,
   type BusinessEngagementDto,
   type CategoryRankingsDto,
@@ -13,6 +15,38 @@ import { sharedClient } from '../clients/shared.client.js';
 import { queueClient } from '../lib/queue-client.js';
 import { AppError } from '../utils/app-error.js';
 import { assertNotAffiliatedBusiness } from '../utils/business-access.js';
+
+function formatCommentDateDisplay(iso: string): string {
+  const [year, month, day] = toJerusalemDateString(new Date(iso)).split('-');
+  return `${day}.${month}.${year}`;
+}
+
+/** Public app origin for business page links (same CORS_ORIGIN rule as invite links). */
+function getPublicAppBaseUrl(): string {
+  const origins = (process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
+  const origin =
+    origins.find((o) => !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(o)) ??
+    origins[0] ??
+    'https://kvator.co.il';
+
+  try {
+    if (new URL(origin).hostname.endsWith('github.io')) {
+      return `${origin}/frontend`;
+    }
+  } catch {
+    /* ignore invalid origin */
+  }
+
+  return origin;
+}
+
+function buildPublicBusinessUrl(slug: string): string {
+  return `${getPublicAppBaseUrl()}/${encodeURIComponent(slug)}`;
+}
 
 async function getBusinessBySlugOrThrow(slug: string): Promise<DbBusiness> {
   try {
@@ -133,6 +167,28 @@ export async function createComment(
           },
           scheduledAt: new Date().toISOString(),
         });
+
+        if (sentiment === CommentSentiment.NEGATIVE) {
+          const date = formatCommentDateDisplay(comment.createdAt);
+          const service = comment.serviceName || 'השירות';
+          const businessUrl = buildPublicBusinessUrl(business.slug);
+          await queueClient.enqueue({
+            type: 'WHATSAPP',
+            userId: business.ownerId,
+            title: 'תגובה שלילית',
+            body: `שלום ${ownerName},\nהמערכת זיהתה כי התגובה האחרונה שקיבלת בתאריך ${date} לשירות ${service} הינה שלילית. היכנס ל${businessUrl} וצפה בפרטים.`,
+            data: {
+              type: 'WHATSAPP',
+              template: 'negative_comment',
+              phone,
+              name: ownerName,
+              date,
+              service,
+              business_url: businessUrl,
+            },
+            scheduledAt: new Date().toISOString(),
+          });
+        }
       }
     } catch (error) {
       // eslint-disable-next-line no-console
