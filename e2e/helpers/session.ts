@@ -9,6 +9,8 @@ export async function setAccessTokenCookie(
       name: 'torbook_access',
       value: accessToken,
       url: 'http://localhost:3000',
+      path: '/',
+      httpOnly: true,
       sameSite: 'Lax',
     },
   ]);
@@ -32,7 +34,7 @@ export async function dismissMissingContactModal(page: Page): Promise<void> {
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => undefined);
 }
 
-/** Loads a protected page so the client hydrates in-memory auth from the cookie. */
+/** Loads a protected page so the client hydrates session state from the HttpOnly cookie. */
 export async function hydrateAuthSession(page: Page, accessToken: string): Promise<void> {
   await setAccessTokenCookie(page.context(), accessToken);
   await page.goto('/my-appointments');

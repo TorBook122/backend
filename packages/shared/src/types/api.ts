@@ -14,7 +14,7 @@ export type AuthUser = {
   hasPassword: boolean;
 };
 
+/** Successful auth response — access JWT is set as an HttpOnly cookie, not returned in JSON. */
 export type AuthTokens = {
-  accessToken: string;
   user: AuthUser;
 };

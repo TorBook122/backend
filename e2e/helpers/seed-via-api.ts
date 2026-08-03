@@ -10,7 +10,6 @@ type ApiSuccess<T> = {
 };
 
 type RegisterData = {
-  accessToken: string;
   user: {
     id: string;
     name: string;
@@ -85,6 +84,14 @@ class ApiSession {
     headers.set('X-CSRF-Token', csrfBody.data.csrfToken);
     return this.request(path, { ...init, headers });
   }
+
+  getCookie(name: string): string | undefined {
+    return this.cookies.get(name);
+  }
+}
+
+function accessTokenFromSession(session: ApiSession): string {
+  return session.getCookie('torbook_access') ?? '';
 }
 
 function uniqueCredentials(prefix: string): { email: string; phone: string } {
@@ -141,7 +148,7 @@ export async function registerCustomer(
 
   return {
     id: body.data.user.id,
-    accessToken: body.data.accessToken,
+    accessToken: accessTokenFromSession(session),
     email: payload.email,
     phone: payload.phone,
     password: payload.password,
@@ -170,7 +177,7 @@ export async function registerOwner(
 
   return {
     id: body.data.user.id,
-    accessToken: body.data.accessToken,
+    accessToken: accessTokenFromSession(session),
     email: payload.email,
     phone: payload.phone,
     password: payload.password,
@@ -203,11 +210,10 @@ export async function seedOwnerWithBusiness(
     }),
   });
   const registerBody = await parseJson<ApiSuccess<RegisterData>>(registerResponse);
-  const accessToken = registerBody.data.accessToken;
 
   const businessResponse = await session.withCsrf('/api/v1/businesses', {
     method: 'POST',
-    headers: authHeaders(accessToken),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name: businessName,
       category: overrides.category ?? 'ספרות',
@@ -221,7 +227,7 @@ export async function seedOwnerWithBusiness(
     `/api/v1/businesses/${businessBody.data.id}/availability`,
     {
       method: 'PUT',
-      headers: authHeaders(accessToken),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ days: defaultAvailabilityDays() }),
     },
   );
@@ -240,7 +246,7 @@ export async function seedOwnerWithBusiness(
       `/api/v1/businesses/${businessBody.data.id}/services`,
       {
         method: 'POST',
-        headers: authHeaders(accessToken),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: overrides.serviceName ?? 'תספורת',
           durationMins: 30,
@@ -254,7 +260,7 @@ export async function seedOwnerWithBusiness(
   if (completeOnboarding) {
     const onboardingResponse = await session.withCsrf('/api/v1/businesses/onboarding/complete', {
       method: 'POST',
-      headers: authHeaders(accessToken),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
     await parseJson(onboardingResponse);
@@ -263,7 +269,7 @@ export async function seedOwnerWithBusiness(
   if (needsTemporaryService && serviceBody) {
     const hideResponse = await session.withCsrf(`/api/v1/services/${serviceBody.data.id}`, {
       method: 'DELETE',
-      headers: authHeaders(accessToken),
+      headers: { 'Content-Type': 'application/json' },
     });
     await parseJson(hideResponse);
     serviceBody = null;
@@ -278,13 +284,12 @@ export async function seedOwnerWithBusiness(
       rememberMe: false,
     }),
   });
-  const loginBody = await parseJson<ApiSuccess<RegisterData>>(loginResponse);
-  const freshAccessToken = loginBody.data.accessToken;
+  await parseJson(loginResponse);
 
   return {
     owner: {
       id: registerBody.data.user.id,
-      accessToken: freshAccessToken,
+      accessToken: accessTokenFromSession(session),
       email: credentials.email,
       phone: credentials.phone,
       password,
@@ -436,7 +441,7 @@ export async function registerCustomerNeedingPhoneCompletion(): Promise<SeededUs
 
   return {
     id: registerBody.data.user.id,
-    accessToken: refreshBody.data.accessToken,
+    accessToken: accessTokenFromSession(session),
     email: payload.email,
     phone: credentials.phone,
     password: payload.password,

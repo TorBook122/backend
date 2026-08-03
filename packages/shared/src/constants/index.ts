@@ -22,6 +22,7 @@ export const PASSWORD_RESET_REQUEST_WINDOW_SECONDS = 15 * 60;
 
 export const CSRF_COOKIE_NAME = 'torbook_csrf';
 export const REFRESH_COOKIE_NAME = 'torbook_refresh';
+export const ACCESS_COOKIE_NAME = 'torbook_access';
 
 export const API_ERROR_CODES = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',

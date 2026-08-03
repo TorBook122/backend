@@ -4,7 +4,6 @@ import { prisma } from '@torbook/db';
 import {
   getRefreshTtlSeconds,
   hashPassword,
-  signAccessToken,
   signRefreshToken,
   verifyPassword,
   verifyRefreshToken,
@@ -27,6 +26,8 @@ import {
 import { getRedis } from '../lib/redis.js';
 import { AppError } from '../utils/app-error.js';
 import { crossSiteCookieOptions } from '../utils/cookie-options.js';
+import { setAccessCookie } from '../utils/access-cookie.js';
+import { clearAuthCookies } from '../utils/clear-auth-cookies.js';
 import { verifyGoogleIdToken } from '../lib/google-auth.js';
 import { sendPasswordResetCode } from '../lib/email/resend.js';
 import type { ActivateEmployeeBody, ForgotPasswordBody, LoginBody, RegisterBody, GoogleAuthBody, ResetPasswordBody } from '../validators/auth.validator.js';
@@ -67,10 +68,6 @@ function setRefreshCookie(res: Response, token: string, rememberMe: boolean) {
     ...refreshCookieOptions,
     maxAge,
   });
-}
-
-function clearRefreshCookie(res: Response) {
-  res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions);
 }
 
 async function storeRefreshToken(userId: string, jti: string, rememberMe: boolean) {
@@ -134,17 +131,12 @@ async function issueAuthTokens(
   res: Response,
   rememberMe = false,
 ): Promise<AuthTokens> {
-  const accessToken = signAccessToken(
-    user.id,
-    user.role,
-    user.onboardingCompletedAt?.toISOString() ?? null,
-    !!user.phoneHash,
-  );
+  setAccessCookie(res, user);
   const jti = randomUUID();
   const refreshToken = signRefreshToken(user.id, jti, rememberMe);
   await storeRefreshToken(user.id, jti, rememberMe);
   setRefreshCookie(res, refreshToken, rememberMe);
-  return { accessToken, user: toAuthUser(user) };
+  return { user: toAuthUser(user) };
 }
 
 export async function loginUser(input: LoginBody, res: Response): Promise<AuthTokens> {
@@ -269,7 +261,7 @@ export async function logoutUser(refreshToken: string | undefined, res: Response
       // ignore invalid tokens on logout
     }
   }
-  clearRefreshCookie(res);
+  clearAuthCookies(res);
 }
 
 function hashInviteToken(token: string): string {

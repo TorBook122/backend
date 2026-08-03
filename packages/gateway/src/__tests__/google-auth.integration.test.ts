@@ -72,6 +72,12 @@ function mockGoogleUser(overrides?: Partial<{
   });
 }
 
+function getAccessCookie(res: request.Response): string | undefined {
+  const cookies = res.headers['set-cookie'] as string[] | undefined;
+  const raw = cookies?.find((cookie) => cookie.startsWith('torbook_access='));
+  return raw?.split(';')[0]?.split('=').slice(1).join('=');
+}
+
 describe('google auth integration (via gateway)', () => {
   it('creates a new Google user with role and returns hasPhone false', async () => {
     mockGoogleUser();
@@ -88,7 +94,9 @@ describe('google auth integration (via gateway)', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.user.hasPhone).toBe(false);
 
-    const payload = verifyAccessToken(res.body.data.accessToken);
+    const signupToken = getAccessCookie(res);
+    expect(signupToken).toBeTruthy();
+    const payload = verifyAccessToken(signupToken!);
     expect(payload.hasPhone).toBe(false);
     expect(payload.role).toBe('CUSTOMER');
 
@@ -110,11 +118,11 @@ describe('google auth integration (via gateway)', () => {
     );
     expect(signupRes.status).toBe(200);
 
-    const accessToken = signupRes.body.data.accessToken as string;
+    const accessToken = getAccessCookie(signupRes);
+    expect(accessToken).toBeTruthy();
     const phoneRes = await withCsrf(agent, (token) =>
       agent
         .patch('/api/v1/users/me/phone')
-        .set('Authorization', `Bearer ${accessToken}`)
         .set('X-CSRF-Token', token)
         .send({ phone: '0521234567' }),
     );
@@ -130,7 +138,9 @@ describe('google auth integration (via gateway)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.user.hasPhone).toBe(true);
-    const payload = verifyAccessToken(res.body.data.accessToken);
+    const loginToken = getAccessCookie(res);
+    expect(loginToken).toBeTruthy();
+    const payload = verifyAccessToken(loginToken!);
     expect(payload.hasPhone).toBe(true);
   });
 
@@ -191,12 +201,10 @@ describe('google auth integration (via gateway)', () => {
     );
 
     expect(googleRes.status).toBe(200);
-    const accessToken = googleRes.body.data.accessToken as string;
 
     const phoneRes = await withCsrf(agent, (token) =>
       agent
         .patch('/api/v1/users/me/phone')
-        .set('Authorization', `Bearer ${accessToken}`)
         .set('X-CSRF-Token', token)
         .send({ phone: '0521234567' }),
     );
@@ -204,7 +212,9 @@ describe('google auth integration (via gateway)', () => {
     expect(phoneRes.status).toBe(200);
     expect(phoneRes.body.data.user.hasPhone).toBe(true);
 
-    const payload = verifyAccessToken(phoneRes.body.data.accessToken);
+    const phoneToken = getAccessCookie(phoneRes);
+    expect(phoneToken).toBeTruthy();
+    const payload = verifyAccessToken(phoneToken!);
     expect(payload.hasPhone).toBe(true);
     expect(payload.role).toBe('BUSINESS_OWNER');
   });
@@ -244,7 +254,7 @@ describe('google auth integration (via gateway)', () => {
     );
 
     expect(refreshRes.status).toBe(200);
-    expect(refreshRes.body.data.accessToken).toBeTruthy();
+    expect(getAccessCookie(refreshRes)).toBeTruthy();
 
     const logoutRes = await withCsrf(agent, (token) =>
       agent.post('/api/v1/auth/logout').set('X-CSRF-Token', token),

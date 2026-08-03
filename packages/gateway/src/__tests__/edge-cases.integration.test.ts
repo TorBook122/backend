@@ -368,6 +368,9 @@ describe('Sprint 5 edge cases (via gateway)', () => {
     const user = await prisma.user.findUnique({ where: { id: customerId } });
     expect(user?.name).toBe('משתמש שנמחק');
     expect(user?.emailEnc).toBeNull();
+    expect(user?.phoneEnc).toBeNull();
+    expect(user?.passwordHash).toBeNull();
+    expect(user?.googleId).toBeNull();
     expect(user?.deletedAt).not.toBeNull();
   });
 

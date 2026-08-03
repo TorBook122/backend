@@ -47,6 +47,12 @@ async function withCsrf(
   return fn(token);
 }
 
+function getAccessCookie(res: request.Response): string | undefined {
+  const cookies = res.headers['set-cookie'] as string[] | undefined;
+  const raw = cookies?.find((cookie) => cookie.startsWith('torbook_access='));
+  return raw?.split(';')[0]?.split('=').slice(1).join('=');
+}
+
 describe('auth integration (via gateway)', () => {
   it('registers, logs in, refreshes, and logs out', async () => {
     const agent = request.agent(app);
@@ -66,7 +72,8 @@ describe('auth integration (via gateway)', () => {
 
     expect(registerRes.status).toBe(201);
     expect(registerRes.body.success).toBe(true);
-    expect(registerRes.body.data.accessToken).toBeTruthy();
+    expect(registerRes.body.data.user.role).toBe('BUSINESS_OWNER');
+    expect(getAccessCookie(registerRes)).toBeTruthy();
 
     const loginRes = await withCsrf(agent, (token) =>
       agent
@@ -87,7 +94,7 @@ describe('auth integration (via gateway)', () => {
     );
 
     expect(refreshRes.status).toBe(200);
-    expect(refreshRes.body.data.accessToken).toBeTruthy();
+    expect(getAccessCookie(refreshRes)).toBeTruthy();
 
     const logoutRes = await withCsrf(agent, (token) =>
       agent.post('/api/v1/auth/logout').set('X-CSRF-Token', token),

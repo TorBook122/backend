@@ -1,7 +1,6 @@
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
-import { prisma } from '@torbook/db';
-import { signAccessToken } from '../lib/auth/jwt.js';
-import { hashPassword, verifyPassword } from '../lib/auth/password.js';
+import type { Response } from 'express';
+import { performGdprErasure, prisma } from '@torbook/db';
 import {
   API_ERROR_CODES,
   AppointmentStatus,
@@ -18,6 +17,9 @@ import {
 import { sendPasswordChangeCode } from '../lib/email/resend.js';
 import { getRedis } from '../lib/redis.js';
 import { AppError } from '../utils/app-error.js';
+import { setAccessCookie } from '../utils/access-cookie.js';
+import { clearAuthCookies } from '../utils/clear-auth-cookies.js';
+import { hashPassword, verifyPassword } from '../lib/auth/password.js';
 import type {
   ConfirmPasswordChangeBody,
   RequestPasswordChangeBody,
@@ -57,7 +59,7 @@ export async function getProfile(userId: string): Promise<AuthUser> {
   return toAuthUser(user);
 }
 
-export async function completePhone(userId: string, phone: string): Promise<AuthTokens> {
+export async function completePhone(userId: string, phone: string, res: Response): Promise<AuthTokens> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.deletedAt) {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'משתמש לא נמצא');
@@ -81,20 +83,15 @@ export async function completePhone(userId: string, phone: string): Promise<Auth
     },
   });
 
-  const accessToken = signAccessToken(
-    updated.id,
-    updated.role,
-    updated.onboardingCompletedAt?.toISOString() ?? null,
-    !!updated.phoneHash,
-  );
-
-  return { accessToken, user: toAuthUser(updated) };
+  setAccessCookie(res, updated);
+  return { user: toAuthUser(updated) };
 }
 
 export async function updateProfile(
   userId: string,
   input: UpdateProfileBody,
-): Promise<AuthUser | AuthTokens> {
+  res: Response,
+): Promise<AuthUser> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.deletedAt) {
     throw new AppError(404, API_ERROR_CODES.NOT_FOUND, 'משתמש לא נמצא');
@@ -149,13 +146,7 @@ export async function updateProfile(
   });
 
   if (input.phone !== undefined) {
-    const accessToken = signAccessToken(
-      updated.id,
-      updated.role,
-      updated.onboardingCompletedAt?.toISOString() ?? null,
-      !!updated.phoneHash,
-    );
-    return { accessToken, user: toAuthUser(updated) };
+    setAccessCookie(res, updated);
   }
 
   return toAuthUser(updated);
@@ -290,7 +281,7 @@ async function verifyUserPassword(userId: string, password: string) {
   return user;
 }
 
-export async function deleteAccount(userId: string, password: string) {
+export async function deleteAccount(userId: string, password: string, res: Response) {
   await verifyUserPassword(userId, password);
 
   const futureAppointments = await prisma.appointment.findMany({
@@ -327,31 +318,19 @@ export async function deleteAccount(userId: string, password: string) {
     data: { deletedAt: new Date() },
   });
 
+  clearAuthCookies(res);
+
   return { deleted: true };
 }
 
-export async function gdprDelete(userId: string, password: string) {
+export async function gdprDelete(userId: string, password: string, res: Response) {
   await verifyUserPassword(userId, password);
 
   await prisma.$transaction(async (tx) => {
-    await tx.fcmToken.deleteMany({ where: { userId } });
-    await tx.favorite.deleteMany({ where: { userId } });
-    await tx.businessLike.deleteMany({ where: { userId } });
-    await tx.businessComment.deleteMany({ where: { userId } });
-
-    await tx.user.update({
-      where: { id: userId },
-      data: {
-        name: 'משתמש שנמחק',
-        emailEnc: null,
-        emailHash: null,
-        phoneEnc: 'deleted',
-        phoneHash: `deleted-${userId}`,
-        passwordHash: 'deleted',
-        deletedAt: new Date(),
-      },
-    });
+    await performGdprErasure(userId, tx);
   });
+
+  clearAuthCookies(res);
 
   return { gdprDeleted: true };
 }

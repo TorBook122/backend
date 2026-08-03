@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { API_ERROR_CODES } from '@torbook/shared';
+import { ACCESS_COOKIE_NAME, API_ERROR_CODES } from '@torbook/shared';
 
 type ValidateResponse = {
   success: boolean;
@@ -12,12 +12,17 @@ type ValidateResponse = {
 
 export async function proxyAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) {
+  let token: string | undefined;
+  if (header?.startsWith('Bearer ')) {
+    token = header.slice(7);
+  } else {
+    token = req.cookies?.[ACCESS_COOKIE_NAME] as string | undefined;
+  }
+
+  if (!token) {
     next();
     return;
   }
-
-  const token = header.slice(7);
   const authServiceUrl = process.env.AUTH_SERVICE_URL ?? 'http://localhost:3002';
   const internalSecret = process.env.INTERNAL_SERVICE_SECRET;
 

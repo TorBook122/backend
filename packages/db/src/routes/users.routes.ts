@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../client.js';
+import { performGdprErasure } from '../gdpr-erasure.js';
 
 const router = Router();
 
@@ -74,22 +75,7 @@ router.post('/:id/soft-delete', async (req, res) => {
 router.post('/:id/gdpr-delete', async (req, res) => {
   const userId = req.params.id;
   await prisma.$transaction(async (tx) => {
-    await tx.fcmToken.deleteMany({ where: { userId } });
-    await tx.favorite.deleteMany({ where: { userId } });
-    await tx.businessLike.deleteMany({ where: { userId } });
-    await tx.businessComment.deleteMany({ where: { userId } });
-    await tx.user.update({
-      where: { id: userId },
-      data: {
-        name: 'משתמש שנמחק',
-        emailEnc: null,
-        emailHash: null,
-        phoneEnc: 'deleted',
-        phoneHash: `deleted-${userId}`,
-        passwordHash: 'deleted',
-        deletedAt: new Date(),
-      },
-    });
+    await performGdprErasure(userId, tx);
   });
   res.json({ success: true, data: { gdprDeleted: true } });
 });

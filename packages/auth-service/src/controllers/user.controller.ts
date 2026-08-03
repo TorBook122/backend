@@ -20,7 +20,7 @@ export async function deleteAccount(req: Request, res: Response) {
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, message);
   }
 
-  const result = await userService.deleteAccount(userId, parsed.data.password);
+  const result = await userService.deleteAccount(userId, parsed.data.password, res);
   res.json({ success: true, data: result });
 }
 
@@ -32,7 +32,7 @@ export async function gdprDelete(req: Request, res: Response) {
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, message);
   }
 
-  const result = await userService.gdprDelete(userId, parsed.data.password);
+  const result = await userService.gdprDelete(userId, parsed.data.password, res);
   res.json({ success: true, data: result });
 }
 
@@ -44,7 +44,7 @@ export async function completePhone(req: Request, res: Response) {
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, message);
   }
 
-  const result = await userService.completePhone(userId, parsed.data.phone);
+  const result = await userService.completePhone(userId, parsed.data.phone, res);
   res.json({ success: true, data: result });
 }
 
@@ -56,7 +56,7 @@ export async function updateProfile(req: Request, res: Response) {
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, message);
   }
 
-  const result = await userService.updateProfile(userId, parsed.data);
+  const result = await userService.updateProfile(userId, parsed.data, res);
   res.json({ success: true, data: result });
 }
 
