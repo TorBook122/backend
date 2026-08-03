@@ -8,8 +8,7 @@ export async function setAccessTokenCookie(
     {
       name: 'torbook_access',
       value: accessToken,
-      url: 'http://localhost:3000',
-      path: '/',
+      url: 'http://localhost:3000/',
       httpOnly: true,
       sameSite: 'Lax',
     },
