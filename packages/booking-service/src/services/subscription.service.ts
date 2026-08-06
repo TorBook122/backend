@@ -122,7 +122,8 @@ function mapSubscriptionDto(subscription: DbPlusSubscription | null): Subscripti
     currentPeriodEnd: subscription.currentPeriodEnd,
     cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
     priceAmountIls: agorotToIls(subscription.priceAmount),
-    hasPaymentMethod: Boolean(subscription.morningTokenId),
+    hasPaymentMethod:
+      Boolean(subscription.morningTokenId) || subscription.status === PlusSubscriptionStatus.ACTIVE,
   };
 }
 
@@ -150,8 +151,8 @@ export async function getSubscriptionStatus(ownerId: string): Promise<Subscripti
 
 /**
  * Reconcile a PENDING checkout with Morning when the webhook cannot reach this server
- * (typical local dev: notifyUrl points at staging while the DB is localhost).
- * If Morning already has a card token for the subscription client, activate like the webhook.
+ * (or was dropped). Prefer card tokens when present; otherwise match a recent paid
+ * document for this Morning client (payment forms do not always create reusable tokens).
  */
 export async function syncPendingCheckoutFromMorning(ownerId: string): Promise<SubscriptionStatusDto> {
   const business = await getOwnerBusiness(ownerId);
@@ -160,7 +161,7 @@ export async function syncPendingCheckoutFromMorning(ownerId: string): Promise<S
     return mapSubscriptionDto(null);
   }
 
-  if (subscription.morningTokenId && isPaidAccessStatus(subscription.status)) {
+  if (isPaidAccessStatus(subscription.status)) {
     return mapSubscriptionDto(subscription);
   }
 
@@ -177,22 +178,37 @@ export async function syncPendingCheckoutFromMorning(ownerId: string): Promise<S
     return mapSubscriptionDto(subscription);
   }
 
+  const tier = subscription.tier as SubscriptionPlanTier;
+  const priceAmount = pendingPayment.amount > 0 ? pendingPayment.amount : getTierMonthlyPriceAgorot(tier);
+
   const tokens = await morningClient.searchCreditCardTokens({
     externalKey: subscription.morningClientId,
   });
   const tokenId = tokens[0]?.id;
-  if (!tokenId) {
-    return mapSubscriptionDto(subscription);
-  }
 
-  const tier = subscription.tier as SubscriptionPlanTier;
-  const priceAmount = pendingPayment.amount > 0 ? pendingPayment.amount : getTierMonthlyPriceAgorot(tier);
+  let documentId: string | null = null;
+  if (!tokenId) {
+    const docs = await morningClient.searchDocuments({
+      page: 1,
+      pageSize: 10,
+      type: getMorningCheckoutDocumentType(),
+      clientId: subscription.morningClientId,
+    });
+    const match = docs.find((doc) => {
+      if (typeof doc.amount !== 'number') return false;
+      return webhookAmountMatchesPrice(doc.amount, priceAmount);
+    });
+    if (!match?.id) {
+      return mapSubscriptionDto(subscription);
+    }
+    documentId = match.id;
+  }
 
   await activatePaidSubscription({
     subscription,
     paymentId: pendingPayment.id,
-    tokenId,
-    documentId: null,
+    tokenId: tokenId ?? `doc:${documentId}`,
+    documentId,
     tier: resolveTierFromPaymentAmount(priceAmount, tier),
     priceAmount,
   });
@@ -204,17 +220,28 @@ export async function syncPendingCheckoutFromMorning(ownerId: string): Promise<S
 export const getPlusSubscriptionStatus = getSubscriptionStatus;
 
 function extractCheckoutRef(body: Record<string, unknown>): string {
-  const custom = body.custom ?? body.checkoutRef;
-  if (typeof custom === 'string') {
-    return custom.trim();
-  }
-  if (custom && typeof custom === 'object') {
-    const record = custom as Record<string, unknown>;
-    const nested = record.checkoutRef ?? record.ref ?? record.id;
-    if (typeof nested === 'string') {
-      return nested.trim();
+  // Morning payment-form notifyUrl returns our `custom` field as `external_data`
+  // (form-urlencoded). Also accept JSON / Meshulam-style aliases.
+  const candidates: unknown[] = [
+    body.external_data,
+    body.externalData,
+    body.custom,
+    body.checkoutRef,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+    if (candidate && typeof candidate === 'object') {
+      const record = candidate as Record<string, unknown>;
+      const nested = record.checkoutRef ?? record.ref ?? record.id ?? record.external_data;
+      if (typeof nested === 'string' && nested.trim()) {
+        return nested.trim();
+      }
     }
   }
+
   return '';
 }
 
@@ -222,7 +249,7 @@ function hasUsablePaidSubscription(
   subscription: DbPlusSubscription,
   requestedTier: SubscriptionPlanTier,
 ): boolean {
-  if (!subscription.morningTokenId || !isPaidAccessStatus(subscription.status)) {
+  if (!isPaidAccessStatus(subscription.status)) {
     return false;
   }
   if (subscription.tier === SubscriptionPlanTier.PLUS) {
@@ -477,12 +504,14 @@ export async function handlePaymentWebhook(body: Record<string, unknown>): Promi
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, 'לקוח Morning חסר');
   }
 
-  const amountIls = parseWebhookAmountIls(body.amount ?? body.sum ?? body.total);
+  const amountIls = parseWebhookAmountIls(
+    body.amount ?? body.sum ?? body.total ?? body.document_amount,
+  );
 
-  // INITIAL / renewal-style charges must match the expected amount.
-  // SETUP (legacy trial tokenization) stored amount 0 and charged the plan price on the form.
+  // INITIAL / renewal-style charges must match the expected amount when Morning sends it.
+  // Form-urlencoded document notify often omits amount — then we trust checkoutRef match.
   if (payment.type !== PlusPaymentType.SETUP) {
-    if (amountIls == null || !webhookAmountMatchesPrice(amountIls, payment.amount)) {
+    if (amountIls != null && !webhookAmountMatchesPrice(amountIls, payment.amount)) {
       throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, 'סכום התשלום אינו תואם');
     }
   } else if (
@@ -494,9 +523,6 @@ export async function handlePaymentWebhook(body: Record<string, unknown>): Promi
 
   const tokens = await morningClient.searchCreditCardTokens({ externalKey: morningClientId });
   const tokenId = tokens[0]?.id;
-  if (!tokenId) {
-    throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, 'לא נמצא אמצעי תשלום');
-  }
 
   const documentId =
     typeof body.documentId === 'string'
@@ -504,6 +530,12 @@ export async function handlePaymentWebhook(body: Record<string, unknown>): Promi
       : typeof body.id === 'string'
         ? body.id
         : null;
+
+  // Payment forms charge successfully but often do not create a reusable card token.
+  // Activate on confirmed notify anyway; renewals can use Morning recurrings / token links later.
+  if (!tokenId && !documentId) {
+    throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, 'לא נמצא אמצעי תשלום או מסמך');
+  }
 
   if (
     payment.type === PlusPaymentType.SETUP &&
@@ -514,7 +546,7 @@ export async function handlePaymentWebhook(body: Record<string, unknown>): Promi
       morningDocumentId: documentId,
     });
     const updated = await dbClient.subscriptions.update(subscription.id, {
-      morningTokenId: tokenId,
+      morningTokenId: tokenId ?? (documentId ? `doc:${documentId}` : subscription.morningTokenId),
     });
     await syncBusinessEntitlements(subscription.businessId, updated);
     return;
@@ -528,7 +560,7 @@ export async function handlePaymentWebhook(body: Record<string, unknown>): Promi
   await activatePaidSubscription({
     subscription,
     paymentId: payment.id,
-    tokenId,
+    tokenId: tokenId ?? `doc:${documentId}`,
     documentId,
     tier,
     priceAmount,

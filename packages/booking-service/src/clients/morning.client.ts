@@ -233,6 +233,37 @@ export async function findOrCreateClient(input: MorningClientInput): Promise<{ i
   return { id: createBody.id };
 }
 
+export async function searchDocuments(input: {
+  page?: number;
+  pageSize?: number;
+  type?: number | number[];
+  clientId?: string;
+}): Promise<Array<{ id: string; amount?: number; description?: string; client?: { id?: string } }>> {
+  if (process.env.E2E_MORNING_MOCK === 'true') {
+    return [];
+  }
+
+  const response = await authorizedFetch('/documents/search', {
+    method: 'POST',
+    body: JSON.stringify({
+      page: input.page ?? 1,
+      pageSize: input.pageSize ?? 10,
+      ...(input.type !== undefined ? { type: input.type } : {}),
+      ...(input.clientId ? { clientId: input.clientId } : {}),
+    }),
+  });
+  const body = (await response.json().catch(() => ({}))) as {
+    items?: Array<{ id: string; amount?: number; description?: string; client?: { id?: string } }>;
+    data?: Array<{ id: string; amount?: number; description?: string; client?: { id?: string } }>;
+    message?: string;
+    error?: string;
+  };
+  if (!response.ok) {
+    throw new Error(body.message ?? body.error ?? `Morning document search error (${response.status})`);
+  }
+  return body.items ?? body.data ?? [];
+}
+
 export function resetMorningTokenCacheForTests(): void {
   cachedToken = null;
 }
@@ -243,4 +274,5 @@ export const morningClient = {
   searchCreditCardTokens,
   chargeCreditCardToken,
   findOrCreateClient,
+  searchDocuments,
 };

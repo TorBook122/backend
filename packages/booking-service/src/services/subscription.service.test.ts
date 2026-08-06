@@ -33,6 +33,7 @@ const mockMorning = vi.hoisted(() => ({
   createPaymentForm: vi.fn(),
   searchCreditCardTokens: vi.fn(),
   chargeCreditCardToken: vi.fn(),
+  searchDocuments: vi.fn(),
 }));
 
 const mockShared = vi.hoisted(() => ({
@@ -114,6 +115,7 @@ describe('subscription.service', () => {
       paymentUrl: 'https://morning.test/pay/abc',
     });
     mockMorning.searchCreditCardTokens.mockResolvedValue([{ id: 'token-1' }]);
+    mockMorning.searchDocuments.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -242,9 +244,111 @@ describe('subscription.service', () => {
       expect(result.status).toBe(PlusSubscriptionStatus.ACTIVE);
       expect(result.hasPaymentMethod).toBe(true);
     });
+
+    it('activates PENDING checkout from a matching Morning document when no card token exists', async () => {
+      mockDb.subscriptions.findByBusinessId
+        .mockResolvedValueOnce({
+          id: 'sub-1',
+          businessId: 'biz-1',
+          tier: SubscriptionPlanTier.PLUS,
+          status: PlusSubscriptionStatus.PENDING,
+          morningClientId: 'morning-client-1',
+          morningTokenId: null,
+          priceAmount: 10000,
+          cancelAtPeriodEnd: false,
+          renewalFailures: 0,
+          trialEndsAt: null,
+          currentPeriodEnd: null,
+          payments: [
+            {
+              id: 'pay-1',
+              subscriptionId: 'sub-1',
+              type: PlusPaymentType.INITIAL,
+              status: PlusPaymentStatus.PENDING,
+              amount: 10000,
+              morningDocumentId: null,
+              checkoutRef: 'ref-1',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          id: 'sub-1',
+          businessId: 'biz-1',
+          tier: SubscriptionPlanTier.PLUS,
+          status: PlusSubscriptionStatus.ACTIVE,
+          morningClientId: 'morning-client-1',
+          morningTokenId: 'doc:doc-1',
+          priceAmount: 10000,
+          cancelAtPeriodEnd: false,
+          renewalFailures: 0,
+          trialEndsAt: null,
+          currentPeriodEnd: new Date().toISOString(),
+        });
+      mockMorning.searchCreditCardTokens.mockResolvedValue([]);
+      mockMorning.searchDocuments.mockResolvedValue([{ id: 'doc-1', amount: 100 }]);
+      mockDb.subscriptions.updatePayment.mockResolvedValue({});
+      mockDb.subscriptions.update.mockResolvedValue({
+        id: 'sub-1',
+        businessId: 'biz-1',
+        tier: SubscriptionPlanTier.PLUS,
+        status: PlusSubscriptionStatus.ACTIVE,
+        morningTokenId: 'doc:doc-1',
+        priceAmount: 10000,
+        cancelAtPeriodEnd: false,
+        renewalFailures: 0,
+        trialEndsAt: null,
+        currentPeriodEnd: new Date().toISOString(),
+      });
+
+      const result = await syncPendingCheckoutFromMorning('owner-1');
+
+      expect(mockMorning.searchDocuments).toHaveBeenCalled();
+      expect(result.status).toBe(PlusSubscriptionStatus.ACTIVE);
+      expect(result.hasPaymentMethod).toBe(true);
+    });
   });
 
   describe('handlePaymentWebhook', () => {
+    it('resolves checkoutRef from Morning external_data notify field', async () => {
+      mockDb.subscriptions.findPaymentByCheckoutRef.mockResolvedValue({
+        id: 'pay-initial',
+        type: PlusPaymentType.INITIAL,
+        status: PlusPaymentStatus.PENDING,
+        amount: 5000,
+        subscriptionId: 'sub-1',
+        subscription: {
+          id: 'sub-1',
+          businessId: 'biz-1',
+          status: PlusSubscriptionStatus.PENDING,
+          tier: SubscriptionPlanTier.GROWTH,
+          morningClientId: 'morning-client-1',
+        },
+      });
+      mockMorning.searchCreditCardTokens.mockResolvedValue([]);
+      mockDb.subscriptions.update.mockResolvedValue({
+        id: 'sub-1',
+        businessId: 'biz-1',
+        status: PlusSubscriptionStatus.ACTIVE,
+        tier: SubscriptionPlanTier.GROWTH,
+        morningTokenId: 'doc:doc-xyz',
+      });
+
+      await handlePaymentWebhook({ external_data: 'checkout-from-morning', id: 'doc-xyz' });
+
+      expect(mockDb.subscriptions.findPaymentByCheckoutRef).toHaveBeenCalledWith(
+        'checkout-from-morning',
+      );
+      expect(mockDb.subscriptions.update).toHaveBeenCalledWith(
+        'sub-1',
+        expect.objectContaining({
+          status: PlusSubscriptionStatus.ACTIVE,
+          morningTokenId: 'doc:doc-xyz',
+        }),
+      );
+    });
+
     it('activates Growth after INITIAL payment without granting access before webhook', async () => {
       mockDb.subscriptions.findPaymentByCheckoutRef.mockResolvedValue({
         id: 'pay-initial',
