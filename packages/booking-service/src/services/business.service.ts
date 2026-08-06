@@ -1,4 +1,4 @@
-import { API_ERROR_CODES, EmployeePermission, isPlusTier, UserRole, type AvailabilityDay, type BreakBlockDto, type BusinessListItem, type BusinessMapLocationDto, type BusinessOwner, type BusinessPublic, type ServiceDto } from '@torbook/shared';
+import { API_ERROR_CODES, EmployeePermission, isPlusTier, normalizeSubscriptionTier, UserRole, type AvailabilityDay, type BreakBlockDto, type BusinessListItem, type BusinessMapLocationDto, type BusinessOwner, type BusinessPublic, type ServiceDto } from '@torbook/shared';
 import { dbClient, type DbBusiness } from '../clients/db.client.js';
 import { sharedClient } from '../clients/shared.client.js';
 import { AppError } from '../utils/app-error.js';
@@ -147,7 +147,7 @@ export async function createBusiness(userId: string, input: CreateBusinessBody):
   return {
     ...toPublic(business),
     phone: input.phone,
-    subscriptionTier: business.subscriptionTier,
+    subscriptionTier: normalizeSubscriptionTier(business.subscriptionTier),
   };
 }
 
@@ -220,7 +220,7 @@ export async function updateBusiness(
   return {
     ...toPublic(updated),
     phone: input.phone ?? (await sharedClient.decryptPii(updated.phoneEnc)),
-    subscriptionTier: updated.subscriptionTier,
+    subscriptionTier: normalizeSubscriptionTier(updated.subscriptionTier),
   };
 }
 
@@ -228,7 +228,7 @@ export async function listPublicBusinesses(query?: string): Promise<BusinessList
   const businesses = await dbClient.businesses.listPublic(query);
   return businesses.map(({ subscriptionTier, bannerUrl, ...rest }) => ({
     ...rest,
-    subscriptionTier,
+    subscriptionTier: normalizeSubscriptionTier(subscriptionTier),
     bannerUrl: isPlusTier(subscriptionTier) ? bannerUrl : null,
   }));
 }
@@ -262,7 +262,7 @@ export async function getOwnerBusiness(userId: string): Promise<BusinessOwner | 
   return {
     ...toPublic({ ...resolved, services: (resolved.services ?? []).filter((s) => s.isVisible) }),
     phone: await sharedClient.decryptPii(resolved.phoneEnc),
-    subscriptionTier: resolved.subscriptionTier,
+    subscriptionTier: normalizeSubscriptionTier(resolved.subscriptionTier),
   };
 }
 
@@ -279,7 +279,7 @@ export async function getManagedBusiness(userId: string, userRole: string): Prom
       return {
         ...toPublic({ ...resolved, services: (resolved.services ?? []).filter((s) => s.isVisible) }),
         phone: await sharedClient.decryptPii(resolved.phoneEnc),
-        subscriptionTier: resolved.subscriptionTier,
+        subscriptionTier: normalizeSubscriptionTier(resolved.subscriptionTier),
       };
     } catch {
       return null;
