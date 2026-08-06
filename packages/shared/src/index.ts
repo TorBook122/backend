@@ -9,3 +9,4 @@ export * from './utils/timing-safe.js';
 export * from './utils/date.js';
 export * from './utils/comment-sentiment.js';
 export * from './utils/comment-profanity.js';
+export * from './utils/subscription.js';

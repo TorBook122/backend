@@ -26,6 +26,11 @@ export async function validateCsrf(req: Request, _res: Response, next: NextFunct
     return;
   }
 
+  if (req.path === '/api/v1/subscriptions/plus/webhook') {
+    next();
+    return;
+  }
+
   const cookieToken = req.cookies?.[CSRF_COOKIE_NAME] as string | undefined;
   const headerToken = req.headers['x-csrf-token'] as string | undefined;
 

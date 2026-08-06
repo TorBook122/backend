@@ -12,6 +12,7 @@ import likesRoutes from './routes/likes.routes.js';
 import commentsRoutes from './routes/comments.routes.js';
 import fcmTokensRoutes from './routes/fcm-tokens.routes.js';
 import auditLogsRoutes from './routes/audit-logs.routes.js';
+import subscriptionsRoutes from './routes/subscriptions.routes.js';
 
 const app: Express = express();
 app.use(express.json({ limit: '512kb' }));
@@ -39,6 +40,7 @@ internal.use('/likes', likesRoutes);
 internal.use('/comments', commentsRoutes);
 internal.use('/fcm-tokens', fcmTokensRoutes);
 internal.use('/audit-logs', auditLogsRoutes);
+internal.use('/subscriptions', subscriptionsRoutes);
 
 app.use(internal);
 

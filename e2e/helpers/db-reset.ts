@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { randomBytes } from 'node:crypto';
 
 const { Client } = pg;
 
@@ -27,6 +28,8 @@ export async function resetDatabase(): Promise<void> {
     await client.query(`
       TRUNCATE
         "AuditLog",
+        "PlusPayment",
+        "PlusSubscription",
         "Appointment",
         "BusinessComment",
         "BusinessLike",
@@ -58,11 +61,69 @@ export async function clearUserPhone(userId: string): Promise<void> {
   });
 }
 
-export async function setBusinessPro(businessId: string): Promise<void> {
+export async function setBusinessSubscriptionTier(
+  businessId: string,
+  tier: 'GROWTH' | 'PLUS',
+): Promise<void> {
   await withClient(async (client) => {
-    await client.query(`UPDATE "Business" SET "isPro" = true, "updatedAt" = NOW() WHERE id = $1`, [
-      businessId,
-    ]);
+    await client.query(
+      `UPDATE "Business" SET "subscriptionTier" = $2, "updatedAt" = NOW() WHERE id = $1`,
+      [businessId, tier],
+    );
+  });
+}
+
+export async function getBusinessSubscriptionTier(
+  businessId: string,
+): Promise<'GROWTH' | 'PLUS' | null> {
+  return withClient(async (client) => {
+    const result = await client.query<{ subscriptionTier: 'GROWTH' | 'PLUS' | null }>(
+      `SELECT "subscriptionTier" FROM "Business" WHERE id = $1`,
+      [businessId],
+    );
+    return result.rows[0]?.subscriptionTier ?? null;
+  });
+}
+
+/** @deprecated use setBusinessSubscriptionTier */
+export async function setBusinessPro(businessId: string): Promise<void> {
+  return setBusinessSubscriptionTier(businessId, 'PLUS');
+}
+
+/** @deprecated use getBusinessSubscriptionTier */
+export async function getBusinessIsPro(businessId: string): Promise<boolean> {
+  const tier = await getBusinessSubscriptionTier(businessId);
+  return tier === 'PLUS';
+}
+
+export async function createPendingPlusCheckout(
+  businessId: string,
+  checkoutRef: string,
+  priceAmountAgorot = 9900,
+): Promise<{ subscriptionId: string; paymentId: string }> {
+  const subscriptionId = `sub_${randomBytes(8).toString('hex')}`;
+  const paymentId = `pay_${randomBytes(8).toString('hex')}`;
+
+  return withClient(async (client) => {
+    await client.query(
+      `INSERT INTO "PlusSubscription" (
+         id, "businessId", tier, status, "morningClientId", "priceAmount", "createdAt", "updatedAt"
+       ) VALUES (
+         $1, $2, 'PLUS', 'PENDING', 'e2e-morning-client', $3, NOW(), NOW()
+       )`,
+      [subscriptionId, businessId, priceAmountAgorot],
+    );
+
+    await client.query(
+      `INSERT INTO "PlusPayment" (
+         id, "subscriptionId", type, status, amount, "checkoutRef", "createdAt", "updatedAt"
+       ) VALUES (
+         $1, $2, 'INITIAL', 'PENDING', $3, $4, NOW(), NOW()
+       )`,
+      [paymentId, subscriptionId, priceAmountAgorot, checkoutRef],
+    );
+
+    return { subscriptionId, paymentId };
   });
 }
 

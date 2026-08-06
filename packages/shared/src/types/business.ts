@@ -1,4 +1,4 @@
-import type { CommentSentiment, EmployeePermission } from './enums.js';
+import type { BusinessSubscriptionTier, CommentSentiment, EmployeePermission } from './enums.js';
 
 export type AvailabilityDay = {
   dayOfWeek: number;
@@ -76,7 +76,7 @@ export type BusinessPublic = {
 
 export type BusinessOwner = BusinessPublic & {
   phone: string;
-  isPro: boolean;
+  subscriptionTier: BusinessSubscriptionTier | null;
 };
 
 export type AppointmentDto = {
@@ -137,7 +137,7 @@ export type BusinessListItem = {
   whatsappUrl: string | null;
   facebookUrl: string | null;
   tiktokUrl: string | null;
-  isPro: boolean;
+  subscriptionTier: BusinessSubscriptionTier | null;
   bannerUrl: string | null;
   logoUrl: string | null;
   services: Array<Pick<ServiceDto, 'id' | 'name' | 'price'>>;
