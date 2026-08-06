@@ -9,7 +9,7 @@ import {
   startSubscriptionWithPayment,
   syncPendingCheckoutFromMorning,
 } from '../services/subscription.service.js';
-import { getMorningReturnBaseUrl, buildMorningCheckoutReturnUrl } from '../config/morning.config.js';
+import { buildMorningCheckoutReturnUrl } from '../config/morning.config.js';
 import { AppError } from '../utils/app-error.js';
 
 function parseTier(value: unknown): SubscriptionPlanTier {

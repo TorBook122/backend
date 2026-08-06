@@ -477,9 +477,7 @@ export async function handlePaymentWebhook(body: Record<string, unknown>): Promi
     throw new AppError(400, API_ERROR_CODES.VALIDATION_ERROR, 'לקוח Morning חסר');
   }
 
-  const amountIls = parseWebhookAmountIls(
-    body.amount ?? body.sum ?? body.total ?? (body as { payer?: unknown }).total,
-  );
+  const amountIls = parseWebhookAmountIls(body.amount ?? body.sum ?? body.total);
 
   // INITIAL / renewal-style charges must match the expected amount.
   // SETUP (legacy trial tokenization) stored amount 0 and charged the plan price on the form.
