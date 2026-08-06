@@ -38,3 +38,34 @@ export enum EmployeePermission {
   MANAGE_SERVICES = 'MANAGE_SERVICES',
   EDIT_CANCELLATION_POLICY = 'EDIT_CANCELLATION_POLICY',
 }
+
+export enum BusinessSubscriptionTier {
+  GROWTH = 'GROWTH',
+  PLUS = 'PLUS',
+}
+
+export enum SubscriptionPlanTier {
+  GROWTH = 'GROWTH',
+  PLUS = 'PLUS',
+}
+
+export enum PlusSubscriptionStatus {
+  PENDING = 'PENDING',
+  TRIALING = 'TRIALING',
+  ACTIVE = 'ACTIVE',
+  PAST_DUE = 'PAST_DUE',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum PlusPaymentType {
+  INITIAL = 'INITIAL',
+  RENEWAL = 'RENEWAL',
+  SETUP = 'SETUP',
+  TRIAL_CONVERSION = 'TRIAL_CONVERSION',
+}
+
+export enum PlusPaymentStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}

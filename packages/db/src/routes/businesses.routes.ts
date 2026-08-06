@@ -255,7 +255,7 @@ router.get('/', async (req, res) => {
       whatsappUrl: true,
       facebookUrl: true,
       tiktokUrl: true,
-      isPro: true,
+      subscriptionTier: true,
       bannerUrl: true,
       logoUrl: true,
       services: {

@@ -100,11 +100,41 @@ export type DbBusiness = {
   tiktokUrl: string | null;
   phoneEnc: string;
   cancellationWindowHours: number;
-  isPro: boolean;
+  subscriptionTier: string | null;
   deletedAt: Date | string | null;
   availability?: Array<{ dayOfWeek: number; isActive: boolean; startTime: string; endTime: string }>;
   breakBlocks?: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
   services?: Array<{ id: string; name: string; durationMins: number; price: number; isVisible: boolean }>;
+};
+
+export type DbPlusSubscription = {
+  id: string;
+  businessId: string;
+  tier: string;
+  status: string;
+  morningClientId: string | null;
+  morningTokenId: string | null;
+  trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
+  priceAmount: number;
+  cancelAtPeriodEnd: boolean;
+  renewalFailures: number;
+  createdAt: string;
+  updatedAt: string;
+  payments?: DbPlusPayment[];
+};
+
+export type DbPlusPayment = {
+  id: string;
+  subscriptionId: string;
+  type: string;
+  status: string;
+  amount: number;
+  morningDocumentId: string | null;
+  checkoutRef: string;
+  createdAt: string;
+  updatedAt: string;
+  subscription?: DbPlusSubscription;
 };
 
 export type DbAppointment = {
@@ -118,6 +148,10 @@ export type DbAppointment = {
   business?: { name: string; slug: string; ownerId?: string; cancellationWindowHours?: number };
   service?: { name: string; durationMins: number };
   customer?: { name: string };
+};
+
+export type DbPlusPaymentWithSubscription = DbPlusPayment & {
+  subscription: DbPlusSubscription;
 };
 
 export const dbClient = {
@@ -158,7 +192,7 @@ export const dbClient = {
         whatsappUrl: string | null;
         facebookUrl: string | null;
         tiktokUrl: string | null;
-        isPro: boolean;
+        subscriptionTier: string | null;
         bannerUrl: string | null;
         logoUrl: string | null;
         services: Array<{ id: string; name: string; price: number }>;
@@ -518,5 +552,26 @@ export const dbClient = {
   auditLogs: {
     create: (data: { action: string; userId?: string | null; ipAddress?: string | null; metadata?: unknown }) =>
       dbPost('/audit-logs', data),
+  },
+
+  subscriptions: {
+    findByBusinessId: (businessId: string) =>
+      dbGet<DbPlusSubscription | null>(`/subscriptions/plus/by-business/${encodeURIComponent(businessId)}`),
+    listDueRenewal: () => dbGet<DbPlusSubscription[]>('/subscriptions/plus/due-renewal'),
+    listTrialsEnding: () => dbGet<DbPlusSubscription[]>('/subscriptions/plus/trials-ending'),
+    listCancelAtPeriodEnd: () => dbGet<DbPlusSubscription[]>('/subscriptions/plus/cancel-at-period-end'),
+    listPastDueExpired: (graceDays: number) =>
+      dbGet<DbPlusSubscription[]>(`/subscriptions/plus/past-due-expired?graceDays=${graceDays}`),
+    create: (data: Record<string, unknown>) => dbPost<DbPlusSubscription>('/subscriptions/plus', data),
+    update: (id: string, data: Record<string, unknown>) =>
+      dbPatch<DbPlusSubscription>(`/subscriptions/plus/${encodeURIComponent(id)}`, data),
+    findPaymentByCheckoutRef: (checkoutRef: string) =>
+      dbGet<DbPlusPaymentWithSubscription | null>(
+        `/subscriptions/plus/payments/by-checkout-ref/${encodeURIComponent(checkoutRef)}`,
+      ),
+    createPayment: (data: Record<string, unknown>) =>
+      dbPost<DbPlusPayment>('/subscriptions/plus/payments', data),
+    updatePayment: (id: string, data: Record<string, unknown>) =>
+      dbPatch<DbPlusPayment>(`/subscriptions/plus/payments/${encodeURIComponent(id)}`, data),
   },
 };

@@ -34,6 +34,14 @@ export async function startTestServices(): Promise<void> {
   process.env.AWS_SQS_QUEUE_URL = '';
   process.env.FCM_SERVICE_ACCOUNT_JSON =
     process.env.FCM_SERVICE_ACCOUNT_JSON ?? '{"type":"service_account"}';
+  process.env.MORNING_ENV = process.env.MORNING_ENV ?? 'sandbox';
+  process.env.MORNING_CLIENT_ID = process.env.MORNING_CLIENT_ID ?? 'e2e-morning-client-id';
+  process.env.MORNING_CLIENT_SECRET = process.env.MORNING_CLIENT_SECRET ?? 'e2e-morning-client-secret';
+  process.env.MORNING_PLUGIN_ID = process.env.MORNING_PLUGIN_ID ?? 'e2e-morning-plugin-id';
+  process.env.PLUS_MONTHLY_PRICE_ILS = process.env.PLUS_MONTHLY_PRICE_ILS ?? '99';
+  process.env.PUBLIC_API_BASE_URL = process.env.PUBLIC_API_BASE_URL ?? 'http://localhost:3001';
+  process.env.FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL ?? 'http://localhost:3000';
+  process.env.E2E_MORNING_MOCK = process.env.E2E_MORNING_MOCK ?? 'true';
 
   const [dbPort, sharedPort] = await Promise.all([listen(dbApp), listen(sharedApp)]);
 

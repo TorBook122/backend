@@ -48,6 +48,37 @@ enum EmployeePermission {
   EDIT_CANCELLATION_POLICY
 }
 
+enum BusinessSubscriptionTier {
+  GROWTH
+  PLUS
+}
+
+enum SubscriptionPlanTier {
+  GROWTH
+  PLUS
+}
+
+enum PlusSubscriptionStatus {
+  PENDING
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+enum PlusPaymentType {
+  INITIAL
+  RENEWAL
+  SETUP
+  TRIAL_CONVERSION
+}
+
+enum PlusPaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id                    String    @id @default(cuid())
   name                  String
@@ -96,8 +127,8 @@ model Business {
   facebookUrl             String?
   tiktokUrl               String?
   phoneEnc                String
-  cancellationWindowHours Int       @default(24)
-  isPro                   Boolean   @default(false)
+  cancellationWindowHours Int                      @default(24)
+  subscriptionTier        BusinessSubscriptionTier?
   deletedAt               DateTime?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
@@ -112,8 +143,46 @@ model Business {
   favorites        Favorite[]
   likes            BusinessLike[]
   comments         BusinessComment[]
+  plusSubscription PlusSubscription?
 
   @@index([slug])
+}
+
+model PlusSubscription {
+  id                String                 @id @default(cuid())
+  businessId        String                 @unique
+  business          Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  tier              SubscriptionPlanTier
+  status            PlusSubscriptionStatus @default(PENDING)
+  morningClientId   String?
+  morningTokenId    String?
+  trialEndsAt       DateTime?
+  currentPeriodEnd  DateTime?
+  priceAmount       Int
+  cancelAtPeriodEnd Boolean                @default(false)
+  renewalFailures   Int                    @default(0)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  payments PlusPayment[]
+
+  @@index([status, currentPeriodEnd])
+  @@index([status, trialEndsAt])
+}
+
+model PlusPayment {
+  id                String            @id @default(cuid())
+  subscriptionId    String
+  subscription      PlusSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  type              PlusPaymentType
+  status            PlusPaymentStatus @default(PENDING)
+  amount            Int
+  morningDocumentId String?
+  checkoutRef       String            @unique
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([subscriptionId])
 }
 
 model EmployeeRole {

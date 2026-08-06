@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import {
   API_ERROR_CODES,
+  isPlusTier,
   AuthProvider,
   EMPLOYEE_INVITE_TTL_DAYS,
   EmployeePermission,
@@ -105,7 +106,7 @@ async function assertOwnerPro(businessId: string, userId: string): Promise<DbBus
   if (business.ownerId !== userId) {
     throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'אין הרשאה לעסק זה');
   }
-  if (!business.isPro) {
+  if (!isPlusTier(business.subscriptionTier)) {
     throw new AppError(403, API_ERROR_CODES.FORBIDDEN, 'פיצ\'ר זמין למנוי Plus בלבד');
   }
   return business;

@@ -145,13 +145,13 @@ test.describe('owner onboarding', () => {
     await onboarding.continueStep4();
     await page.waitForURL('**/setup/step-5');
 
-    await expect(page.getByRole('heading', { name: 'הכל מוכן!' })).toBeVisible();
-    await expect(page.locator('main').getByRole('button', { name: 'הפעלת העסק' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'בחרו חבילה ורכישה מאובטחת' })).toBeVisible();
+    await expect(page.locator('main').getByRole('button', { name: 'המשך לתשלום מאובטח' })).toBeVisible();
     await expect(page.locator('p[dir="ltr"]')).toHaveCount(0);
 
-    await page.locator('main').getByRole('button', { name: 'הפעלת העסק' }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'העסק שלך פעיל!' })).toBeVisible();
+    await page.locator('main').getByRole('button', { name: 'המשך לתשלום מאובטח' }).click();
+    await page.waitForURL('**/upgrade/success**');
+    await expect(page.getByRole('heading', { name: 'העסק שלך פעיל!' })).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('p[dir="ltr"]')).toContainText('localhost:3000');
   });
 });

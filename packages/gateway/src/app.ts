@@ -7,6 +7,10 @@ import { issueCsrfToken, validateCsrf } from './middleware/csrf.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { proxyAuth } from './middleware/proxy-auth.js';
 import adminRoutes from './routes/admin.routes.js';
+import {
+  getMorningDevReturnTarget,
+  morningDevReturnHtml,
+} from './routes/morning-dev-return.js';
 
 function serviceProxy(target: string, apiPrefix: string) {
   return createProxyMiddleware({
@@ -84,6 +88,21 @@ export function createApp(): Express {
 
   app.get('/api/v1/csrf', issueCsrfToken);
 
+  // Public Morning success/failure bounce for local iframe checkout (no auth).
+  app.get('/api/v1/dev/morning-return', (req, res) => {
+    const target = getMorningDevReturnTarget(req.query.to);
+    const page = morningDevReturnHtml(target);
+    res
+      .status(page.status)
+      .setHeader('Content-Type', 'text/html; charset=utf-8')
+      .setHeader('Cache-Control', 'no-store')
+      .setHeader(
+        'Content-Security-Policy',
+        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+      )
+      .send(page.body);
+  });
+
   app.use('/api/v1/auth', serviceProxy(authServiceUrl, '/api/v1/auth'));
   app.use('/api/v1/users', proxyAuth, serviceProxy(authServiceUrl, '/api/v1/users'));
   app.use('/api/v1/announcements', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/announcements'));
@@ -93,6 +112,15 @@ export function createApp(): Express {
   app.use('/api/v1/employee-roles', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/employee-roles'));
   app.use('/api/v1/appointments', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/appointments'));
   app.use('/api/v1/support', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/support'));
+
+  // Morning payment-form notifyUrl (urlencoded) + optional JSON webhook deliveries.
+  app.post(
+    '/api/v1/subscriptions/plus/webhook',
+    express.urlencoded({ extended: true }),
+    express.json(),
+    serviceProxy(bookingServiceUrl, '/api/v1/subscriptions/plus/webhook'),
+  );
+  app.use('/api/v1/subscriptions', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/subscriptions'));
 
   app.use(errorHandler);
 

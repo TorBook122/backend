@@ -57,9 +57,23 @@ export class OnboardingPage {
   }
 
   async finishOnboarding(): Promise<void> {
-    await this.page.locator('main').getByRole('button', { name: 'הפעלת העסק' }).click();
-    await this.page.getByRole('dialog').waitFor({ state: 'visible' });
+    await this.page.locator('main').getByRole('button', { name: 'המשך לתשלום מאובטח' }).click();
+
+    const checkoutIframe = this.page.locator('iframe[title="טופס תשלום מאובטח"]');
+    const iframeShown = await checkoutIframe
+      .waitFor({ state: 'visible', timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (iframeShown) {
+      await this.page.waitForURL('**/upgrade/success**', { timeout: 45_000 });
+    } else {
+      await this.page.waitForURL('**/upgrade/success**', { timeout: 20_000 });
+    }
+
+    await this.page.getByRole('heading', { name: 'העסק שלך פעיל!' }).waitFor({ timeout: 30_000 });
     await this.page.getByRole('button', { name: 'המשך ללוח הבקרה' }).click();
+    await this.page.waitForURL('**/dashboard');
   }
 
   async completeAllSteps(details: {
