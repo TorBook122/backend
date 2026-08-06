@@ -16,7 +16,22 @@ function serviceProxy(target: string, apiPrefix: string) {
   return createProxyMiddleware({
     target,
     changeOrigin: true,
+    // When mounted with app.use('/prefix', ...), Express strips the prefix from req.url
+    // and we re-attach apiPrefix. Do not use this helper with app.post(fullPath) —
+    // that doubles the path and 404s (see morningWebhookProxy).
     pathRewrite: (path) => `${apiPrefix}${path}`,
+    on: {
+      proxyReq: fixRequestBody,
+    },
+  });
+}
+
+/** Exact-path proxy for Morning notifyUrl — never doubles the upstream path. */
+function morningWebhookProxy(target: string) {
+  return createProxyMiddleware({
+    target,
+    changeOrigin: true,
+    pathRewrite: () => '/api/v1/subscriptions/plus/webhook',
     on: {
       proxyReq: fixRequestBody,
     },
@@ -114,11 +129,12 @@ export function createApp(): Express {
   app.use('/api/v1/support', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/support'));
 
   // Morning payment-form notifyUrl (urlencoded) + optional JSON webhook deliveries.
+  // Must use a fixed path rewrite — app.post(fullPath) + serviceProxy would 404.
   app.post(
     '/api/v1/subscriptions/plus/webhook',
     express.urlencoded({ extended: true }),
     express.json(),
-    serviceProxy(bookingServiceUrl, '/api/v1/subscriptions/plus/webhook'),
+    morningWebhookProxy(bookingServiceUrl),
   );
   app.use('/api/v1/subscriptions', proxyAuth, serviceProxy(bookingServiceUrl, '/api/v1/subscriptions'));
 
